@@ -2,25 +2,14 @@
 
 #include "client/Camera.hpp"
 
-#include "shared/Protocol.hpp"
-
-#include <cstdint>
-
 namespace game {
-
-struct RenderDebugState {
-    bool connected = false;
-    std::uint32_t snapshotSequence = 0;
-    std::uint64_t serverTick = 0;
-    PlayerState player = {};
-};
 
 class OpenGLRenderer {
 public:
     ~OpenGLRenderer();
 
     void setViewport(int width, int height);
-    void render(const Camera& camera, const RenderDebugState& debugState);
+    void render(const Camera& camera);
     void shutdown();
 
 private:
