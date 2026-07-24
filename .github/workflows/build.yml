@@ -6,7 +6,7 @@ on:
 jobs:
   linux:
     name: Linux Release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout
@@ -16,7 +16,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            cmake \
             ninja-build \
             pkg-config \
             libasound2-dev \
@@ -43,6 +42,14 @@ jobs:
             libxss-dev \
             libxtst-dev \
             wayland-protocols
+
+      - name: Install CMake
+        run: |
+          python3 -m pip install --user "cmake>=3.25,<4"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Check CMake version
+        run: cmake --version
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
