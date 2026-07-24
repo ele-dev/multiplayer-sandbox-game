@@ -19,6 +19,7 @@ Testing/
 *.dll
 *.dylib
 *.exe
+*.pdf
 
 # Editor and OS files
 .vscode/
