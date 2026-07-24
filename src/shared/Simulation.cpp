@@ -1,0 +1,45 @@
+#include "shared/Simulation.hpp"
+
+#include "shared/Math.hpp"
+
+#include <cmath>
+
+namespace game {
+
+void Simulation::applyInput(const ClientInputCommand& input) {
+    latestInput_ = input;
+}
+
+void Simulation::tick(float fixedDeltaSeconds) {
+    constexpr float mouseSensitivity = 0.0025f;
+    constexpr float moveSpeedMetersPerSecond = 4.5f;
+    constexpr float maxPitchRadians = 1.5f;
+
+    player_.yawRadians += latestInput_.lookDelta.x * mouseSensitivity;
+    player_.pitchRadians = clamp(
+        player_.pitchRadians + latestInput_.lookDelta.y * mouseSensitivity,
+        -maxPitchRadians,
+        maxPitchRadians
+    );
+
+    const Vec2 movement = normalize(latestInput_.movement);
+    const float sinYaw = std::sin(player_.yawRadians);
+    const float cosYaw = std::cos(player_.yawRadians);
+
+    const Vec3 forward = {sinYaw, 0.0f, -cosYaw};
+    const Vec3 right = {cosYaw, 0.0f, sinYaw};
+    const Vec3 velocity = (forward * movement.y) + (right * movement.x);
+
+    player_.position = player_.position + (velocity * (moveSpeedMetersPerSecond * fixedDeltaSeconds));
+    ++tickCount_;
+}
+
+const PlayerState& Simulation::player() const {
+    return player_;
+}
+
+std::uint64_t Simulation::tickCount() const {
+    return tickCount_;
+}
+
+} // namespace game
