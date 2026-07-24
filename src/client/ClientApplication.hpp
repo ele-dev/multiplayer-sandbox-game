@@ -1,6 +1,7 @@
 #pragma once
 
 #include "client/Camera.hpp"
+#include "client/GuiLayer.hpp"
 #include "client/Input.hpp"
 #include "client/OpenGLRenderer.hpp"
 #include "net/UdpTransport.hpp"
@@ -34,6 +35,7 @@ private:
     Input input_;
     Camera camera_;
     RenderDebugState debugState_;
+    GuiLayer guiLayer_;
     OpenGLRenderer renderer_;
     UdpTransport transport_;
     NetworkEndpoint serverEndpoint_ = {"127.0.0.1", defaultServerPort};
