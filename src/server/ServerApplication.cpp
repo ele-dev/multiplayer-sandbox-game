@@ -2,20 +2,13 @@
 
 #include "net/Serialization.hpp"
 
+#include <glm/glm.hpp>
+
 #include <chrono>
-#include <cmath>
 #include <iostream>
 #include <thread>
 
 namespace game {
-
-namespace {
-
-constexpr float degreesToRadians(float degrees) {
-    return degrees * 3.14159265f / 180.0f;
-}
-
-} // namespace
 
 int ServerApplication::run() {
     std::cout << std::unitbuf;
@@ -86,7 +79,7 @@ void ServerApplication::loadConfig() {
     simulation_.setMouseSensitivity(sensitivity);
 
     const float maxPitchDegrees = config_.getFloat("player.max_pitch_degrees", 85.94f);
-    simulation_.setMaxPitchRadians(degreesToRadians(maxPitchDegrees));
+    simulation_.setMaxPitchRadians(glm::radians(maxPitchDegrees));
 
     std::cout << "  server.port=" << port_ << '\n';
     std::cout << "  server.tick_rate=" << tickRate << '\n';

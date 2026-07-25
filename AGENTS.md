@@ -17,4 +17,5 @@
 - Linux CI runs on `ubuntu-22.04` (for glibc compatibility); CMake installed via pip (`cmake>=3.25,<4`).
 - Windows CI uses explicit MSVC v143 toolset with dynamic runtime (`MultiThreadedDLL`).
 - Vertical look input is inverted at the client input layer (mouse `yrel` negated, arrow keys swapped).
+- Use GLM (OpenGL Mathematics) for all vector, matrix, and math implementations across the entire codebase; avoid custom math types and functions.
 - Avoid static linking; keep SDL3 and MSVC runtime as dynamic dependencies.

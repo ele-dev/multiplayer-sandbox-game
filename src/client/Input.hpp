@@ -24,7 +24,7 @@ private:
     bool lookDown_ = false;
     bool lookLeft_ = false;
     bool lookRight_ = false;
-    Vec2 lookDelta_ = {};
+    glm::vec2 lookDelta_ = {};
 };
 
 } // namespace game
