@@ -1,4 +1,7 @@
 #include "client/ClientApplication.hpp"
+#include "client/ConnectScene.hpp"
+#include "client/InGameScene.hpp"
+#include "client/StartScene.hpp"
 
 #include "net/Serialization.hpp"
 
@@ -20,15 +23,33 @@ int ClientApplication::run() {
         return 1;
     }
 
-    transport_.sendTo(serverEndpoint_, serializeClientHello(++inputSequence_));
+    sceneManager_.pushScene(std::make_unique<StartScene>(
+        [this]() { requestPlay(); },
+        [this]() { running_ = false; }
+    ));
 
     while (running_) {
         input_.beginFrame();
         processEvents();
-        sendInput();
-        processNetwork();
-        renderer_.render(camera_);
-        guiLayer_.render(debugState_);
+        sceneManager_.applyPending();
+
+        if (input_.quitRequested()) {
+            running_ = false;
+            break;
+        }
+
+        if (auto* scene = sceneManager_.current()) {
+            scene->update();
+
+            renderer_.render(camera_);
+
+            guiLayer_.beginFrame();
+            scene->renderImGui();
+            guiLayer_.endFrame();
+
+            updateRelativeMouse();
+        }
+
         SDL_GL_SwapWindow(window_);
         SDL_Delay(1);
     }
@@ -61,7 +82,6 @@ bool ClientApplication::initialize() {
     }
 
     SDL_GL_SetSwapInterval(1);
-    SDL_SetWindowRelativeMouseMode(window_, true);
     renderer_.setViewport(1280, 720);
 
     if (!guiLayer_.initialize(window_, glContext_)) {
@@ -69,20 +89,15 @@ bool ClientApplication::initialize() {
         return false;
     }
 
-    if (!transport_.open(0)) {
-        std::cerr << "Failed to open client UDP socket\n";
-        return false;
-    }
-    transportOpen_ = true;
-
-    std::cout << "game_client sending to " << serverEndpoint_.host << ':' << serverEndpoint_.port << '\n';
+    std::cout << "game_client initialized\n";
     return true;
 }
 
 void ClientApplication::shutdown() {
-    sendDisconnect();
-    transport_.close();
-    transportOpen_ = false;
+    if (transportOpen_) {
+        transport_.close();
+        transportOpen_ = false;
+    }
     guiLayer_.shutdown();
     renderer_.shutdown();
     if (glContext_ != nullptr) {
@@ -103,6 +118,9 @@ void ClientApplication::processEvents() {
         if (event.type == SDL_EVENT_WINDOW_RESIZED) {
             renderer_.setViewport(event.window.data1, event.window.data2);
         }
+        if (auto* scene = sceneManager_.current()) {
+            scene->handleEvent(event);
+        }
         input_.handleEvent(event);
     }
 
@@ -111,42 +129,52 @@ void ClientApplication::processEvents() {
     }
 }
 
-void ClientApplication::processNetwork() {
-    while (auto packet = transport_.receive()) {
-        const auto type = readPacketType(packet->bytes);
-        if (!type) {
-            continue;
-        }
-
-        if (*type == PacketType::ServerWelcome) {
-            debugState_.connected = true;
-            std::cout << "connected to server\n";
-            continue;
-        }
-
-        if (*type == PacketType::ServerSnapshot) {
-            if (auto snapshot = deserializeServerSnapshot(packet->bytes)) {
-                camera_.setFromPlayer(snapshot->player);
-                debugState_.connected = true;
-                debugState_.snapshotSequence = snapshot->sequence;
-                debugState_.serverTick = snapshot->serverTick;
-                debugState_.player = snapshot->player;
-            }
-        }
-    }
+void ClientApplication::updateRelativeMouse() {
+    const bool wanted = sceneManager_.current() && sceneManager_.current()->wantsRelativeMouse();
+    SDL_SetWindowRelativeMouseMode(window_, wanted);
 }
 
-void ClientApplication::sendInput() {
-    const auto command = input_.command(++inputSequence_, ++clientTick_);
-    transport_.sendTo(serverEndpoint_, serializeClientInput(command));
+void ClientApplication::requestPlay() {
+    sceneManager_.pushScene(std::make_unique<ConnectScene>(
+        [this](const std::string& ip) { requestConnect(ip); },
+        [this]() { requestReturnToStart(); }
+    ));
 }
 
-void ClientApplication::sendDisconnect() {
-    if (!transportOpen_ || disconnectSent_) {
+void ClientApplication::requestConnect(const std::string& ip) {
+    serverEndpoint_ = {ip, defaultServerPort};
+    if (!transport_.open(0)) {
+        std::cerr << "Failed to open client UDP socket\n";
         return;
     }
-    transport_.sendTo(serverEndpoint_, serializeDisconnect(++inputSequence_));
-    disconnectSent_ = true;
+    transportOpen_ = true;
+
+    inputSequence_ = 0;
+
+    transport_.sendTo(serverEndpoint_, serializeClientHello(1));
+    std::cout << "game_client sending to " << serverEndpoint_.host << ':' << serverEndpoint_.port << '\n';
+
+    sceneManager_.pushScene(std::make_unique<InGameScene>(
+        input_,
+        camera_,
+        debugState_,
+        transport_,
+        serverEndpoint_,
+        [this]() { requestReturnToStart(); }
+    ));
+}
+
+void ClientApplication::requestReturnToStart() {
+    if (transportOpen_) {
+        transport_.close();
+        transportOpen_ = false;
+    }
+    debugState_ = {};
+
+    sceneManager_.pushScene(std::make_unique<StartScene>(
+        [this]() { requestPlay(); },
+        [this]() { running_ = false; }
+    ));
 }
 
 } // namespace game

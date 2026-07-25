@@ -67,10 +67,14 @@ target_link_libraries(game_server PRIVATE game_shared game_net)
 add_executable(game_client
     src/client/main.cpp
     src/client/ClientApplication.cpp
+    src/client/ConnectScene.cpp
+    src/client/InGameScene.cpp
     src/client/Input.cpp
     src/client/Camera.cpp
     src/client/GuiLayer.cpp
     src/client/OpenGLRenderer.cpp
+    src/client/SceneManager.cpp
+    src/client/StartScene.cpp
 )
 target_link_libraries(game_client PRIVATE game_shared game_net SDL3::SDL3 OpenGL::GL imgui)
 

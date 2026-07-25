@@ -27,11 +27,6 @@ void Input::handleEvent(const SDL_Event& event) {
 
     const bool pressed = event.type == SDL_EVENT_KEY_DOWN;
     switch (event.key.scancode) {
-    case SDL_SCANCODE_ESCAPE:
-        if (pressed) {
-            quitRequested_ = true;
-        }
-        break;
     case SDL_SCANCODE_W:
         forward_ = pressed;
         break;
