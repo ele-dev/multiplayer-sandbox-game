@@ -1,6 +1,9 @@
 name: Build
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -72,24 +75,24 @@ jobs:
 
   windows:
     name: Windows Release
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T v143 -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL
 
       - name: Build
-        run: cmake --build build
+        run: cmake --build build --config Release
 
       - name: Package binaries
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path package/windows | Out-Null
-          Copy-Item build/game_client.exe package/windows/
-          Copy-Item build/game_server.exe package/windows/
+          Copy-Item build/Release/game_client.exe package/windows/
+          Copy-Item build/Release/game_server.exe package/windows/
           Get-ChildItem -Path build -Recurse -Filter SDL3.dll | ForEach-Object { Copy-Item $_.FullName package/windows/ }
 
       - name: Upload artifact
