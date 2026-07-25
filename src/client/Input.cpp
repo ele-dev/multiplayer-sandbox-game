@@ -17,7 +17,7 @@ void Input::handleEvent(const SDL_Event& event) {
 
     if (event.type == SDL_EVENT_MOUSE_MOTION) {
         lookDelta_.x += event.motion.xrel;
-        lookDelta_.y += event.motion.yrel;
+        lookDelta_.y -= event.motion.yrel;
         return;
     }
 
@@ -71,7 +71,7 @@ ClientInputCommand Input::command(std::uint32_t sequence, std::uint64_t clientTi
     result.movement.y = (forward_ ? 1.0f : 0.0f) - (backward_ ? 1.0f : 0.0f);
     result.lookDelta = lookDelta_;
     result.lookDelta.x += ((lookRight_ ? 1.0f : 0.0f) - (lookLeft_ ? 1.0f : 0.0f)) * keyboardLookDeltaPerFrame;
-    result.lookDelta.y += ((lookDown_ ? 1.0f : 0.0f) - (lookUp_ ? 1.0f : 0.0f)) * keyboardLookDeltaPerFrame;
+    result.lookDelta.y += ((lookUp_ ? 1.0f : 0.0f) - (lookDown_ ? 1.0f : 0.0f)) * keyboardLookDeltaPerFrame;
     return result;
 }
 
