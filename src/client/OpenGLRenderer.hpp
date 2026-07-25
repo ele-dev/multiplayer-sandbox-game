@@ -8,6 +8,7 @@ class OpenGLRenderer {
 public:
     ~OpenGLRenderer();
 
+    void clear();
     void setViewport(int width, int height);
     void render(const Camera& camera);
     void shutdown();
