@@ -26,8 +26,11 @@ public:
 
     bool initialize(SDL_Window* window, SDL_GLContext glContext);
     void processEvent(const SDL_Event& event);
-    void render(const RenderDebugState& debugState);
+    void beginFrame();
+    void endFrame();
     void shutdown();
+
+    bool isInitialized() const { return initialized_; }
 
 private:
     bool initialized_ = false;

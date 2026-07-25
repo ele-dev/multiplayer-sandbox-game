@@ -1,9 +1,16 @@
 #include "client/ClientApplication.hpp"
+#include "client/ConnectLayer.hpp"
+#include "client/DebugOverlayLayer.hpp"
+#include "client/HudLayer.hpp"
+#include "client/MainMenuLayer.hpp"
+#include "client/PauseMenuLayer.hpp"
+#include "client/ViewportLayer.hpp"
 
 #include "net/Serialization.hpp"
 
 #include <SDL3/SDL_error.h>
 #include <SDL3/SDL_init.h>
+#include <SDL3/SDL_keyboard.h>
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_timer.h>
 
@@ -20,15 +27,29 @@ int ClientApplication::run() {
         return 1;
     }
 
-    transport_.sendTo(serverEndpoint_, serializeClientHello(++inputSequence_));
+    layerStack_.pushLayer(std::make_unique<MainMenuLayer>(
+        [this]() { requestPlay(); },
+        [this]() { running_ = false; }
+    ));
 
     while (running_) {
         input_.beginFrame();
         processEvents();
-        sendInput();
-        processNetwork();
-        renderer_.render(camera_);
-        guiLayer_.render(debugState_);
+
+        if (input_.quitRequested()) {
+            running_ = false;
+            break;
+        }
+
+        renderer_.clear();
+        layerStack_.onUpdate();
+
+        guiLayer_.beginFrame();
+        layerStack_.onRender();
+        guiLayer_.endFrame();
+
+        updateRelativeMouse();
+
         SDL_GL_SwapWindow(window_);
         SDL_Delay(1);
     }
@@ -61,7 +82,6 @@ bool ClientApplication::initialize() {
     }
 
     SDL_GL_SetSwapInterval(1);
-    SDL_SetWindowRelativeMouseMode(window_, true);
     renderer_.setViewport(1280, 720);
 
     if (!guiLayer_.initialize(window_, glContext_)) {
@@ -69,20 +89,15 @@ bool ClientApplication::initialize() {
         return false;
     }
 
-    if (!transport_.open(0)) {
-        std::cerr << "Failed to open client UDP socket\n";
-        return false;
-    }
-    transportOpen_ = true;
-
-    std::cout << "game_client sending to " << serverEndpoint_.host << ':' << serverEndpoint_.port << '\n';
+    std::cout << "game_client initialized\n";
     return true;
 }
 
 void ClientApplication::shutdown() {
-    sendDisconnect();
-    transport_.close();
-    transportOpen_ = false;
+    if (transportOpen_) {
+        transport_.close();
+        transportOpen_ = false;
+    }
     guiLayer_.shutdown();
     renderer_.shutdown();
     if (glContext_ != nullptr) {
@@ -96,57 +111,144 @@ void ClientApplication::shutdown() {
     SDL_Quit();
 }
 
+Event ClientApplication::convertEvent(const SDL_Event& sdlEvent) const {
+    Event event{};
+
+    switch (sdlEvent.type) {
+    case SDL_EVENT_QUIT:
+        event.type = EventType::Quit;
+        break;
+    case SDL_EVENT_KEY_DOWN:
+        event.type = EventType::KeyDown;
+        event.key.scancode = sdlEvent.key.scancode;
+        break;
+    case SDL_EVENT_KEY_UP:
+        event.type = EventType::KeyUp;
+        event.key.scancode = sdlEvent.key.scancode;
+        break;
+    case SDL_EVENT_MOUSE_MOTION:
+        event.type = EventType::MouseMove;
+        event.mouseMove.xrel = sdlEvent.motion.xrel;
+        event.mouseMove.yrel = sdlEvent.motion.yrel;
+        break;
+    case SDL_EVENT_MOUSE_BUTTON_DOWN:
+        event.type = EventType::MouseButtonDown;
+        event.mouseButton.button = sdlEvent.button.button;
+        event.mouseButton.x = sdlEvent.button.x;
+        event.mouseButton.y = sdlEvent.button.y;
+        break;
+    case SDL_EVENT_MOUSE_BUTTON_UP:
+        event.type = EventType::MouseButtonUp;
+        event.mouseButton.button = sdlEvent.button.button;
+        event.mouseButton.x = sdlEvent.button.x;
+        event.mouseButton.y = sdlEvent.button.y;
+        break;
+    case SDL_EVENT_WINDOW_RESIZED:
+        event.type = EventType::WindowResized;
+        event.windowResize.width = sdlEvent.window.data1;
+        event.windowResize.height = sdlEvent.window.data2;
+        break;
+    default:
+        break;
+    }
+
+    return event;
+}
+
 void ClientApplication::processEvents() {
-    SDL_Event event;
-    while (SDL_PollEvent(&event)) {
-        guiLayer_.processEvent(event);
-        if (event.type == SDL_EVENT_WINDOW_RESIZED) {
-            renderer_.setViewport(event.window.data1, event.window.data2);
-        }
-        input_.handleEvent(event);
-    }
+    SDL_Event sdlEvent;
+    while (SDL_PollEvent(&sdlEvent)) {
+        guiLayer_.processEvent(sdlEvent);
 
-    if (input_.quitRequested()) {
-        running_ = false;
-    }
-}
+        Event event = convertEvent(sdlEvent);
 
-void ClientApplication::processNetwork() {
-    while (auto packet = transport_.receive()) {
-        const auto type = readPacketType(packet->bytes);
-        if (!type) {
-            continue;
+        if (event.type == EventType::WindowResized) {
+            renderer_.setViewport(event.windowResize.width, event.windowResize.height);
+            layerStack_.resize(event.windowResize.width, event.windowResize.height);
         }
 
-        if (*type == PacketType::ServerWelcome) {
-            debugState_.connected = true;
-            std::cout << "connected to server\n";
-            continue;
-        }
+        layerStack_.onEvent(event);
 
-        if (*type == PacketType::ServerSnapshot) {
-            if (auto snapshot = deserializeServerSnapshot(packet->bytes)) {
-                camera_.setFromPlayer(snapshot->player);
-                debugState_.connected = true;
-                debugState_.snapshotSequence = snapshot->sequence;
-                debugState_.serverTick = snapshot->serverTick;
-                debugState_.player = snapshot->player;
-            }
-        }
+        input_.handleEvent(sdlEvent);
     }
 }
 
-void ClientApplication::sendInput() {
-    const auto command = input_.command(++inputSequence_, ++clientTick_);
-    transport_.sendTo(serverEndpoint_, serializeClientInput(command));
+void ClientApplication::updateRelativeMouse() {
+    const bool wanted = layerStack_.wantsRelativeMouse();
+    SDL_SetWindowRelativeMouseMode(window_, wanted);
 }
 
-void ClientApplication::sendDisconnect() {
-    if (!transportOpen_ || disconnectSent_) {
+void ClientApplication::requestPlay() {
+    while (!layerStack_.empty()) {
+        layerStack_.popLayer();
+    }
+    layerStack_.pushLayer(std::make_unique<ConnectLayer>(
+        [this](const std::string& ip) { requestConnect(ip); },
+        [this]() { requestReturnToStart(); }
+    ));
+}
+
+void ClientApplication::requestConnect(const std::string& ip) {
+    serverEndpoint_ = {ip, defaultServerPort};
+    if (!transport_.open(0)) {
+        std::cerr << "Failed to open client UDP socket\n";
         return;
     }
-    transport_.sendTo(serverEndpoint_, serializeDisconnect(++inputSequence_));
-    disconnectSent_ = true;
+    transportOpen_ = true;
+
+    transport_.sendTo(serverEndpoint_, serializeClientHello(1));
+    std::cout << "game_client sending to " << serverEndpoint_.host << ':' << serverEndpoint_.port << '\n';
+
+    isPaused_ = false;
+
+    while (!layerStack_.empty()) {
+        layerStack_.popLayer();
+    }
+
+    layerStack_.pushLayer(std::make_unique<ViewportLayer>(
+        input_,
+        camera_,
+        debugState_,
+        renderer_,
+        transport_,
+        serverEndpoint_,
+        isPaused_,
+        [this](bool paused) { onPauseToggled(paused); },
+        [this]() { requestReturnToStart(); }
+    ));
+
+    layerStack_.pushOverlay(std::make_unique<HudLayer>(isPaused_));
+    layerStack_.pushOverlay(std::make_unique<DebugOverlayLayer>(debugState_));
+}
+
+void ClientApplication::onPauseToggled(bool paused) {
+    isPaused_ = paused;
+    if (paused) {
+        layerStack_.pushOverlay(std::make_unique<PauseMenuLayer>(
+            [this]() { onPauseToggled(false); },
+            [this]() { requestReturnToStart(); }
+        ));
+    } else {
+        layerStack_.popLayer();
+    }
+}
+
+void ClientApplication::requestReturnToStart() {
+    if (transportOpen_) {
+        transport_.close();
+        transportOpen_ = false;
+    }
+    debugState_ = {};
+    isPaused_ = false;
+
+    while (!layerStack_.empty()) {
+        layerStack_.popLayer();
+    }
+
+    layerStack_.pushLayer(std::make_unique<MainMenuLayer>(
+        [this]() { requestPlay(); },
+        [this]() { running_ = false; }
+    ));
 }
 
 } // namespace game

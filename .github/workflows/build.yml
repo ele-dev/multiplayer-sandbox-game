@@ -1,6 +1,9 @@
 name: Build
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -55,13 +58,17 @@ jobs:
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: cmake --build build
+        run: |
+          build_jobs=$(nproc)
+          build_jobs=$(( build_jobs > 1 ? build_jobs / 2 : 1 ))
+          cmake --build build --parallel "$build_jobs"
 
       - name: Package binaries
         run: |
           mkdir -p package/linux
           cp build/game_client package/linux/
           cp build/game_server package/linux/
+          cp server.cfg package/linux/
           find build -name 'libSDL3.so*' -type f -exec cp -P {} package/linux/ \;
 
       - name: Upload artifact
@@ -72,24 +79,28 @@ jobs:
 
   windows:
     name: Windows Release
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T v143 -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL
 
       - name: Build
-        run: cmake --build build
+        shell: pwsh
+        run: |
+          $buildJobs = [Math]::Max(1, [Math]::Floor([Environment]::ProcessorCount / 2))
+          cmake --build build --config Release --parallel $buildJobs
 
       - name: Package binaries
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path package/windows | Out-Null
-          Copy-Item build/game_client.exe package/windows/
-          Copy-Item build/game_server.exe package/windows/
+          Copy-Item build/Release/game_client.exe package/windows/
+          Copy-Item build/Release/game_server.exe package/windows/
+          Copy-Item server.cfg package/windows/
           Get-ChildItem -Path build -Recurse -Filter SDL3.dll | ForEach-Object { Copy-Item $_.FullName package/windows/ }
 
       - name: Upload artifact

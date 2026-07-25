@@ -1,6 +1,7 @@
 #pragma once
 
-#include "shared/Math.hpp"
+#include <glm/glm.hpp>
+
 #include "shared/PlayerState.hpp"
 
 #include <cstdint>
@@ -21,8 +22,8 @@ enum class PacketType : std::uint8_t {
 struct ClientInputCommand {
     std::uint32_t sequence = 0;
     std::uint64_t clientTick = 0;
-    Vec2 movement = {};
-    Vec2 lookDelta = {};
+    glm::vec2 movement = {};
+    glm::vec2 lookDelta = {};
 };
 
 struct ServerSnapshot {

@@ -3,6 +3,10 @@
 #include <SDL3/SDL_opengl.h>
 #include <SDL3/SDL_video.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include <array>
 #include <cmath>
 #include <iostream>
@@ -99,73 +103,6 @@ struct Vertex {
     float a = 1.0f;
 };
 
-struct Mat4 {
-    std::array<float, 16> values{};
-};
-
-float dot(Vec3 a, Vec3 b) {
-    return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
-}
-
-Vec3 cross(Vec3 a, Vec3 b) {
-    return {(a.y * b.z) - (a.z * b.y), (a.z * b.x) - (a.x * b.z), (a.x * b.y) - (a.y * b.x)};
-}
-
-Vec3 normalize(Vec3 value) {
-    const float len = std::sqrt(dot(value, value));
-    if (len <= 0.0001f) {
-        return {};
-    }
-    return {value.x / len, value.y / len, value.z / len};
-}
-
-Mat4 multiply(const Mat4& left, const Mat4& right) {
-    Mat4 result;
-    for (int column = 0; column < 4; ++column) {
-        for (int row = 0; row < 4; ++row) {
-            float value = 0.0f;
-            for (int i = 0; i < 4; ++i) {
-                value += left.values[i * 4 + row] * right.values[column * 4 + i];
-            }
-            result.values[column * 4 + row] = value;
-        }
-    }
-    return result;
-}
-
-Mat4 perspective(float fovRadians, float aspect, float nearPlane, float farPlane) {
-    const float scale = 1.0f / std::tan(fovRadians * 0.5f);
-    Mat4 result;
-    result.values[0] = scale / aspect;
-    result.values[5] = scale;
-    result.values[10] = -(farPlane + nearPlane) / (farPlane - nearPlane);
-    result.values[11] = -1.0f;
-    result.values[14] = -(2.0f * farPlane * nearPlane) / (farPlane - nearPlane);
-    return result;
-}
-
-Mat4 lookAt(Vec3 eye, Vec3 center, Vec3 worldUp) {
-    const Vec3 forward = normalize({center.x - eye.x, center.y - eye.y, center.z - eye.z});
-    const Vec3 side = normalize(cross(forward, worldUp));
-    const Vec3 up = cross(side, forward);
-
-    Mat4 result;
-    result.values[0] = side.x;
-    result.values[4] = side.y;
-    result.values[8] = side.z;
-    result.values[1] = up.x;
-    result.values[5] = up.y;
-    result.values[9] = up.z;
-    result.values[2] = -forward.x;
-    result.values[6] = -forward.y;
-    result.values[10] = -forward.z;
-    result.values[12] = -dot(side, eye);
-    result.values[13] = -dot(up, eye);
-    result.values[14] = dot(forward, eye);
-    result.values[15] = 1.0f;
-    return result;
-}
-
 GLuint compileShader(GLenum type, const char* source) {
     const GLuint shader = glCreateShaderPtr(type);
     glShaderSourcePtr(shader, 1, &source, nullptr);
@@ -232,19 +169,19 @@ void main() {
     return 0;
 }
 
-void addLine(std::vector<Vertex>& vertices, Vec3 start, Vec3 end, float r, float g, float b, float a) {
+void addLine(std::vector<Vertex>& vertices, glm::vec3 start, glm::vec3 end, float r, float g, float b, float a) {
     vertices.push_back({start.x, start.y, start.z, r, g, b, a});
     vertices.push_back({end.x, end.y, end.z, r, g, b, a});
 }
 
-void drawVertices(GLuint program, const Mat4& mvp, GLenum primitive, const std::vector<Vertex>& vertices) {
+void drawVertices(GLuint program, const glm::mat4& mvp, GLenum primitive, const std::vector<Vertex>& vertices) {
     if (vertices.empty()) {
         return;
     }
 
     glUseProgramPtr(program);
     const GLint mvpLocation = glGetUniformLocationPtr(program, "uMvp");
-    glUniformMatrix4fvPtr(mvpLocation, 1, GL_FALSE, mvp.values.data());
+    glUniformMatrix4fvPtr(mvpLocation, 1, GL_FALSE, glm::value_ptr(mvp));
     glBufferDataPtr(
         GL_ARRAY_BUFFER,
         static_cast<GLsizeiptr>(vertices.size() * sizeof(Vertex)),
@@ -258,6 +195,11 @@ void drawVertices(GLuint program, const Mat4& mvp, GLenum primitive, const std::
 
 OpenGLRenderer::~OpenGLRenderer() {
     shutdown();
+}
+
+void OpenGLRenderer::clear() {
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void OpenGLRenderer::setViewport(int width, int height) {
@@ -279,17 +221,17 @@ void OpenGLRenderer::render(const Camera& camera) {
 
     const auto& player = camera.player();
     const float cosPitch = std::cos(player.pitchRadians);
-    const Vec3 eye = player.position;
-    const Vec3 forward = {
+    const glm::vec3 eye = player.position;
+    const glm::vec3 forward = {
         std::sin(player.yawRadians) * cosPitch,
         std::sin(player.pitchRadians),
         -std::cos(player.yawRadians) * cosPitch,
     };
 
     const float aspect = static_cast<float>(width_) / static_cast<float>(height_ > 0 ? height_ : 1);
-    const Mat4 projection = perspective(70.0f * 3.14159265f / 180.0f, aspect, 0.05f, 200.0f);
-    const Mat4 view = lookAt(eye, eye + forward, {0.0f, 1.0f, 0.0f});
-    const Mat4 worldMvp = multiply(projection, view);
+    const glm::mat4 projection = glm::perspective(glm::radians(70.0f), aspect, 0.05f, 200.0f);
+    const glm::mat4 view = glm::lookAt(eye, eye + forward, glm::vec3(0.0f, 1.0f, 0.0f));
+    const glm::mat4 worldMvp = projection * view;
 
     std::vector<Vertex> worldLines;
     worldLines.reserve(84);
@@ -297,8 +239,8 @@ void OpenGLRenderer::render(const Camera& camera) {
         const float color = (i == 0) ? 0.52f : 0.22f;
         addLine(
             worldLines,
-            {-20.0f, 0.0f, static_cast<float>(i)},
-            {20.0f, 0.0f, static_cast<float>(i)},
+            glm::vec3(-20.0f, 0.0f, static_cast<float>(i)),
+            glm::vec3(20.0f, 0.0f, static_cast<float>(i)),
             color,
             color,
             color,
@@ -306,16 +248,16 @@ void OpenGLRenderer::render(const Camera& camera) {
         );
         addLine(
             worldLines,
-            {static_cast<float>(i), 0.0f, -20.0f},
-            {static_cast<float>(i), 0.0f, 20.0f},
+            glm::vec3(static_cast<float>(i), 0.0f, -20.0f),
+            glm::vec3(static_cast<float>(i), 0.0f, 20.0f),
             color,
             color,
             color,
             1.0f
         );
     }
-    addLine(worldLines, {0.0f, 0.02f, 0.0f}, {2.0f, 0.02f, 0.0f}, 0.95f, 0.18f, 0.18f, 1.0f);
-    addLine(worldLines, {0.0f, 0.02f, 0.0f}, {0.0f, 0.02f, 2.0f}, 0.18f, 0.42f, 0.95f, 1.0f);
+    addLine(worldLines, glm::vec3(0.0f, 0.02f, 0.0f), glm::vec3(2.0f, 0.02f, 0.0f), 0.95f, 0.18f, 0.18f, 1.0f);
+    addLine(worldLines, glm::vec3(0.0f, 0.02f, 0.0f), glm::vec3(0.0f, 0.02f, 2.0f), 0.18f, 0.42f, 0.95f, 1.0f);
     drawVertices(program_, worldMvp, GL_LINES, worldLines);
 }
 
