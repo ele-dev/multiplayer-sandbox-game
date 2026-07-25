@@ -68,6 +68,7 @@ jobs:
           mkdir -p package/linux
           cp build/game_client package/linux/
           cp build/game_server package/linux/
+          cp server.cfg package/linux/
           find build -name 'libSDL3.so*' -type f -exec cp -P {} package/linux/ \;
 
       - name: Upload artifact
@@ -99,6 +100,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path package/windows | Out-Null
           Copy-Item build/Release/game_client.exe package/windows/
           Copy-Item build/Release/game_server.exe package/windows/
+          Copy-Item server.cfg package/windows/
           Get-ChildItem -Path build -Recurse -Filter SDL3.dll | ForEach-Object { Copy-Item $_.FullName package/windows/ }
 
       - name: Upload artifact

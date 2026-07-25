@@ -11,15 +11,11 @@ void Simulation::applyInput(const ClientInputCommand& input) {
 }
 
 void Simulation::tick(float fixedDeltaSeconds) {
-    constexpr float mouseSensitivity = 0.0025f;
-    constexpr float moveSpeedMetersPerSecond = 4.5f;
-    constexpr float maxPitchRadians = 1.5f;
-
-    player_.yawRadians += latestInput_.lookDelta.x * mouseSensitivity;
+    player_.yawRadians += latestInput_.lookDelta.x * mouseSensitivity_;
     player_.pitchRadians = clamp(
-        player_.pitchRadians + latestInput_.lookDelta.y * mouseSensitivity,
-        -maxPitchRadians,
-        maxPitchRadians
+        player_.pitchRadians + latestInput_.lookDelta.y * mouseSensitivity_,
+        -maxPitchRadians_,
+        maxPitchRadians_
     );
 
     const Vec2 movement = normalize(latestInput_.movement);
@@ -30,8 +26,20 @@ void Simulation::tick(float fixedDeltaSeconds) {
     const Vec3 right = {cosYaw, 0.0f, sinYaw};
     const Vec3 velocity = (forward * movement.y) + (right * movement.x);
 
-    player_.position = player_.position + (velocity * (moveSpeedMetersPerSecond * fixedDeltaSeconds));
+    player_.position = player_.position + (velocity * (moveSpeed_ * fixedDeltaSeconds));
     ++tickCount_;
+}
+
+void Simulation::setMoveSpeed(float speed) {
+    moveSpeed_ = speed;
+}
+
+void Simulation::setMouseSensitivity(float sensitivity) {
+    mouseSensitivity_ = sensitivity;
+}
+
+void Simulation::setMaxPitchRadians(float radians) {
+    maxPitchRadians_ = radians;
 }
 
 const PlayerState& Simulation::player() const {

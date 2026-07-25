@@ -43,6 +43,7 @@ target_include_directories(imgui PUBLIC
 target_link_libraries(imgui PUBLIC SDL3::SDL3 OpenGL::GL)
 
 add_library(game_shared
+    src/shared/Config.cpp
     src/shared/Simulation.cpp
 )
 target_include_directories(game_shared PUBLIC src)

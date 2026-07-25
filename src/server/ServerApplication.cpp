@@ -1,23 +1,33 @@
 #include "server/ServerApplication.hpp"
 
 #include "net/Serialization.hpp"
-#include "shared/Timestep.hpp"
 
 #include <chrono>
+#include <cmath>
 #include <iostream>
 #include <thread>
 
 namespace game {
 
+namespace {
+
+constexpr float degreesToRadians(float degrees) {
+    return degrees * 3.14159265f / 180.0f;
+}
+
+} // namespace
+
 int ServerApplication::run() {
     std::cout << std::unitbuf;
 
-    if (!transport_.open(defaultServerPort)) {
-        std::cerr << "Failed to bind UDP server port " << defaultServerPort << '\n';
+    loadConfig();
+
+    if (!transport_.open(port_)) {
+        std::cerr << "Failed to bind UDP server port " << port_ << '\n';
         return 1;
     }
 
-    std::cout << "game_server listening on UDP port " << defaultServerPort << '\n';
+    std::cout << "game_server listening on UDP port " << port_ << '\n';
     std::cout << "Press Ctrl+C to stop.\n";
 
     using clock = std::chrono::steady_clock;
@@ -33,13 +43,13 @@ int ServerApplication::run() {
         processNetwork();
         checkClientTimeout(now);
 
-        while (accumulator >= fixedTickSeconds) {
-            simulation_.tick(static_cast<float>(fixedTickSeconds));
+        while (accumulator >= tickSeconds_) {
+            simulation_.tick(static_cast<float>(tickSeconds_));
             sendSnapshot();
-            accumulator -= fixedTickSeconds;
+            accumulator -= tickSeconds_;
         }
 
-        if (now - lastLog >= std::chrono::seconds(5)) {
+        if (now - lastLog >= logInterval_) {
             const auto& player = simulation_.player();
             std::cout << "tick=" << simulation_.tickCount() << " player=(" << player.position.x << ", "
                       << player.position.y << ", " << player.position.z << ")\n";
@@ -48,6 +58,43 @@ int ServerApplication::run() {
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
+}
+
+void ServerApplication::loadConfig() {
+    if (!config_.loadFile("server.cfg")) {
+        std::cout << "No server.cfg found, using defaults\n";
+        return;
+    }
+
+    std::cout << "Loaded server.cfg\n";
+
+    port_ = static_cast<std::uint16_t>(config_.getInt("server.port", port_));
+
+    const int tickRate = config_.getInt("server.tick_rate", 60);
+    tickSeconds_ = 1.0 / std::max(tickRate, 1);
+
+    const int timeoutSecs = config_.getInt("server.client_timeout_seconds", static_cast<int>(clientTimeout_.count()));
+    clientTimeout_ = std::chrono::seconds(std::max(timeoutSecs, 1));
+
+    const int logSecs = config_.getInt("server.log_interval_seconds", static_cast<int>(logInterval_.count()));
+    logInterval_ = std::chrono::seconds(std::max(logSecs, 0));
+
+    const float moveSpeed = config_.getFloat("player.move_speed", 4.5f);
+    simulation_.setMoveSpeed(moveSpeed);
+
+    const float sensitivity = config_.getFloat("player.mouse_sensitivity", 0.0025f);
+    simulation_.setMouseSensitivity(sensitivity);
+
+    const float maxPitchDegrees = config_.getFloat("player.max_pitch_degrees", 85.94f);
+    simulation_.setMaxPitchRadians(degreesToRadians(maxPitchDegrees));
+
+    std::cout << "  server.port=" << port_ << '\n';
+    std::cout << "  server.tick_rate=" << tickRate << '\n';
+    std::cout << "  server.client_timeout_seconds=" << timeoutSecs << '\n';
+    std::cout << "  server.log_interval_seconds=" << logSecs << '\n';
+    std::cout << "  player.move_speed=" << moveSpeed << '\n';
+    std::cout << "  player.mouse_sensitivity=" << sensitivity << '\n';
+    std::cout << "  player.max_pitch_degrees=" << maxPitchDegrees << '\n';
 }
 
 void ServerApplication::processNetwork() {
@@ -95,7 +142,7 @@ void ServerApplication::checkClientTimeout(std::chrono::steady_clock::time_point
         return;
     }
 
-    if (now - lastClientPacketTime_ >= std::chrono::seconds(5)) {
+    if (now - lastClientPacketTime_ >= clientTimeout_) {
         std::cout << "client timed out from " << clientEndpoint_->host << ':' << clientEndpoint_->port << '\n';
         clientEndpoint_.reset();
     }
