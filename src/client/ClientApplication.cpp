@@ -27,7 +27,8 @@ int ClientApplication::run() {
         processEvents();
         sendInput();
         processNetwork();
-        renderer_.render(camera_, debugState_);
+        renderer_.render(camera_);
+        guiLayer_.render(debugState_);
         SDL_GL_SwapWindow(window_);
         SDL_Delay(1);
     }
@@ -63,6 +64,11 @@ bool ClientApplication::initialize() {
     SDL_SetWindowRelativeMouseMode(window_, true);
     renderer_.setViewport(1280, 720);
 
+    if (!guiLayer_.initialize(window_, glContext_)) {
+        std::cerr << "Failed to initialize Dear ImGui\n";
+        return false;
+    }
+
     if (!transport_.open(0)) {
         std::cerr << "Failed to open client UDP socket\n";
         return false;
@@ -77,6 +83,7 @@ void ClientApplication::shutdown() {
     sendDisconnect();
     transport_.close();
     transportOpen_ = false;
+    guiLayer_.shutdown();
     renderer_.shutdown();
     if (glContext_ != nullptr) {
         SDL_GL_DestroyContext(glContext_);
@@ -92,6 +99,7 @@ void ClientApplication::shutdown() {
 void ClientApplication::processEvents() {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
+        guiLayer_.processEvent(event);
         if (event.type == SDL_EVENT_WINDOW_RESIZED) {
             renderer_.setViewport(event.window.data1, event.window.data2);
         }

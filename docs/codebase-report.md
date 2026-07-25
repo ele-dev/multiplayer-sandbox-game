@@ -55,6 +55,7 @@ Graphical game client executable:
 - `src/client/ClientApplication.cpp`
 - `src/client/Input.cpp`
 - `src/client/Camera.cpp`
+- `src/client/GuiLayer.cpp`
 - `src/client/OpenGLRenderer.cpp`
 
 Depends on:
@@ -63,6 +64,7 @@ Depends on:
 - `game_net`
 - `SDL3::SDL3`
 - `OpenGL::GL`
+- `imgui`
 
 ## Runtime Flow
 
@@ -75,7 +77,7 @@ Depends on:
 7. Server ticks at fixed `60 Hz`.
 8. Server sends `ServerSnapshot` packets.
 9. Client updates camera/debug state from the latest snapshot.
-10. Client renders the grid, crosshair, and debug overlay.
+10. Client renders the grid through `OpenGLRenderer`, then renders the crosshair and debug overlay through Dear ImGui.
 11. On client shutdown, client sends `Disconnect`.
 12. Server clears the connected client on explicit disconnect or timeout.
 
@@ -439,11 +441,11 @@ Client entrypoint. Creates `game::ClientApplication` and calls `run()`.
 
 ### `src/client/ClientApplication.hpp/.cpp`
 
-SDL/OpenGL client application.
+SDL/OpenGL/Dear ImGui client application.
 
 #### `class ClientApplication`
 
-Owns the client lifecycle, SDL window, OpenGL context, input, camera, renderer, UDP transport, and current network/debug state.
+Owns the client lifecycle, SDL window, OpenGL context, input, camera, ImGui layer, renderer, UDP transport, and current network/debug state.
 
 Members:
 
@@ -452,6 +454,7 @@ Members:
 - `Input input_`
 - `Camera camera_`
 - `RenderDebugState debugState_`
+- `GuiLayer guiLayer_`
 - `OpenGLRenderer renderer_`
 - `UdpTransport transport_`
 - `NetworkEndpoint serverEndpoint_`
@@ -471,9 +474,9 @@ Runs the client main loop.
 
 Behavior:
 
-- Initializes SDL, OpenGL, renderer viewport, and UDP socket.
+- Initializes SDL, OpenGL, Dear ImGui, renderer viewport, and UDP socket.
 - Sends `ClientHello`.
-- Each frame resets input deltas, processes SDL events, sends input, receives packets, renders, swaps buffers, and delays 1 ms.
+- Each frame resets input deltas, processes SDL events, sends input, receives packets, renders the 3D grid, renders ImGui, swaps buffers, and delays 1 ms.
 
 #### `initialize()`
 
@@ -487,15 +490,16 @@ Behavior:
 - Creates the OpenGL context.
 - Enables vsync.
 - Enables SDL relative mouse mode.
+- Initializes the Dear ImGui SDL3/OpenGL3 backends.
 - Opens UDP socket on an ephemeral port.
 
 #### `shutdown()`
 
-Sends disconnect, closes UDP transport, shuts down renderer resources, destroys OpenGL context, destroys SDL window, and calls `SDL_Quit()`.
+Sends disconnect, closes UDP transport, shuts down Dear ImGui, shuts down renderer resources, destroys OpenGL context, destroys SDL window, and calls `SDL_Quit()`.
 
 #### `processEvents()`
 
-Polls SDL events, updates viewport on resize, forwards events to `Input`, and stops the loop if quit was requested.
+Polls SDL events, forwards events to Dear ImGui, updates viewport on resize, forwards events to `Input`, and stops the loop if quit was requested.
 
 #### `processNetwork()`
 
@@ -573,13 +577,13 @@ Copies authoritative player state into camera state.
 
 Returns current camera/player state.
 
-### `src/client/OpenGLRenderer.hpp/.cpp`
+### `src/client/GuiLayer.hpp/.cpp`
 
-Minimal OpenGL debug renderer.
+Owns Dear ImGui lifecycle, SDL event forwarding, 2D debug UI, crosshair rendering, and future 2D GUI elements.
 
 #### `struct RenderDebugState`
 
-Data displayed in the overlay.
+Data displayed in the ImGui overlay.
 
 Members:
 
@@ -587,6 +591,38 @@ Members:
 - `std::uint32_t snapshotSequence`
 - `std::uint64_t serverTick`
 - `PlayerState player`
+
+#### `class GuiLayer`
+
+Owns ImGui context and backend state.
+
+Members:
+
+- `bool initialized_`
+
+#### `~GuiLayer()`
+
+Calls `shutdown()`.
+
+#### `initialize(SDL_Window* window, SDL_GLContext glContext)`
+
+Creates the ImGui context, enables keyboard navigation, applies the dark style, and initializes the SDL3/OpenGL3 ImGui backends.
+
+#### `processEvent(const SDL_Event& event)`
+
+Forwards SDL events to `ImGui_ImplSDL3_ProcessEvent` when initialized.
+
+#### `render(const RenderDebugState& debugState)`
+
+Starts a new ImGui frame, draws a foreground crosshair, draws the upper-right network debug overlay, and submits ImGui draw data through the OpenGL3 backend.
+
+#### `shutdown()`
+
+Shuts down ImGui OpenGL3 and SDL3 backends, destroys the ImGui context, and marks the layer uninitialized.
+
+### `src/client/OpenGLRenderer.hpp/.cpp`
+
+Minimal OpenGL debug renderer.
 
 #### `class OpenGLRenderer`
 
@@ -608,7 +644,7 @@ Calls `shutdown()`.
 
 Stores viewport size and calls `glViewport`.
 
-#### `render(const Camera& camera, const RenderDebugState& debugState)`
+#### `render(const Camera& camera)`
 
 Renders one frame.
 
@@ -616,13 +652,10 @@ Behavior:
 
 - Lazily initializes OpenGL resources.
 - Clears the screen.
-- Enables depth testing and blending.
+- Enables depth testing.
 - Builds a perspective camera from authoritative player position/yaw/pitch.
 - Draws a world-space X/Z floor grid.
 - Draws red/blue axis hints at world origin.
-- Draws center crosshair.
-- Draws semi-transparent debug panel.
-- Draws bitmap text for connection, server tick, position, yaw/pitch, and snapshot sequence.
 
 #### `shutdown()`
 
@@ -650,7 +683,7 @@ Column-major 4x4 matrix backed by `std::array<float, 16>`.
 
 ### Vector/Matrix Helpers
 
-Private helpers include `dot`, `cross`, `normalize`, `multiply`, `perspective`, `orthographic`, and `lookAt`.
+Private helpers include `dot`, `cross`, `normalize`, `multiply`, `perspective`, and `lookAt`.
 
 ### Shader Helpers
 
@@ -661,16 +694,6 @@ Private helpers include `dot`, `cross`, `normalize`, `multiply`, `perspective`, 
 ### Geometry Helpers
 
 `addLine` appends two line vertices.
-
-`addQuad` appends six vertices for a screen-space quad.
-
-### Bitmap Text Helpers
-
-`glyph` returns a 3x5 bitmap pattern for supported characters.
-
-`addText` converts a string into screen-space quad glyphs.
-
-`formatLine` formats debug overlay text into short strings.
 
 ### `drawVertices(...)`
 
@@ -685,6 +708,6 @@ Uploads vertices to the dynamic vertex buffer and issues `glDrawArrays`.
 - Server uses the latest input only; it does not buffer per-tick input.
 - `ServerWelcome` is serialized but not fully deserialized by the client.
 - Renderer is debug-only and not yet a real scene/rendering abstraction.
-- Text overlay uses a minimal built-in bitmap font with limited glyph support.
+- Dear ImGui is currently used for debug UI only; there are no interactive game menus yet.
 - Mouse-look may be unreliable under WSL2/WSLg, so arrow keys provide fallback camera look.
 - Server runs forever and currently relies on process termination for shutdown.
