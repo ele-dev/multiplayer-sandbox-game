@@ -15,6 +15,7 @@
 #include <SDL3/SDL_timer.h>
 
 #include <iostream>
+#include <cstdio>
 
 namespace game {
 
@@ -158,6 +159,12 @@ Event ClientApplication::convertEvent(const SDL_Event& sdlEvent) const {
 void ClientApplication::processEvents() {
     SDL_Event sdlEvent;
     while (SDL_PollEvent(&sdlEvent)) {
+        printf("[processEvents] SDL event type: %d (0x%x)\n", sdlEvent.type, sdlEvent.type);
+        if (sdlEvent.type == SDL_EVENT_KEY_DOWN && sdlEvent.key.scancode == SDL_SCANCODE_ESCAPE)
+            printf("  -> ESC key down detected\n");
+        if (sdlEvent.type == SDL_EVENT_QUIT)
+            printf("  -> SDL_EVENT_QUIT detected!\n");
+
         guiLayer_.processEvent(sdlEvent);
 
         Event event = convertEvent(sdlEvent);

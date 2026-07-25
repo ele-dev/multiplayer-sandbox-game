@@ -3,6 +3,7 @@
 #include "net/Serialization.hpp"
 
 #include <iostream>
+#include <cstdio>
 
 namespace game {
 
@@ -54,6 +55,7 @@ void ViewportLayer::onUpdate() {
 
 void ViewportLayer::onEvent(Event& event) {
     if (event.type == EventType::KeyDown && event.key.scancode == SDL_SCANCODE_ESCAPE) {
+        printf("[ViewportLayer] ESC key handled, toggling pause from %d to %d\n", isPaused_, !isPaused_);
         isPaused_ = !isPaused_;
         if (onPauseToggle_) {
             onPauseToggle_(isPaused_);

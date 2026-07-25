@@ -3,6 +3,8 @@
 #include <SDL3/SDL_keyboard.h>
 #include <SDL3/SDL_scancode.h>
 
+#include <cstdio>
+
 namespace game {
 
 void Input::beginFrame() {
@@ -11,6 +13,7 @@ void Input::beginFrame() {
 
 void Input::handleEvent(const SDL_Event& event) {
     if (event.type == SDL_EVENT_QUIT) {
+        printf("[Input] SDL_EVENT_QUIT received, setting quitRequested_\n");
         quitRequested_ = true;
         return;
     }
