@@ -1,6 +1,10 @@
 #pragma once
 
 #include "client/Camera.hpp"
+#include "client/graphics/DebugLineRenderer.hpp"
+#include "client/graphics/SolidMeshRenderer.hpp"
+
+#include <glm/vec3.hpp>
 
 namespace game {
 
@@ -10,6 +14,7 @@ public:
 
     void clear();
     void setViewport(int width, int height);
+    void setObjectColor(glm::vec3 color);
     void render(const Camera& camera);
     void shutdown();
 
@@ -18,9 +23,10 @@ private:
 
     int width_ = 1280;
     int height_ = 720;
-    unsigned int program_ = 0;
-    unsigned int vertexArray_ = 0;
-    unsigned int vertexBuffer_ = 0;
+    bool initialized_ = false;
+    glm::vec3 objectColor_ = {0.20f, 0.70f, 1.00f};
+    SolidMeshRenderer solidMeshRenderer_;
+    DebugLineRenderer debugLineRenderer_;
 };
 
 } // namespace game

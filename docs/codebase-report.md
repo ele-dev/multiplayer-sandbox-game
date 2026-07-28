@@ -56,6 +56,10 @@ Graphical game client executable:
 - `src/client/Camera.cpp`
 - `src/client/DearImGuiContext.cpp`
 - `src/client/Event.cpp`
+- `src/client/graphics/DebugLineRenderer.cpp`
+- `src/client/graphics/OpenGLFunctions.cpp`
+- `src/client/graphics/ShaderProgram.cpp`
+- `src/client/graphics/SolidMeshRenderer.cpp`
 - `src/client/LayerStack.cpp`
 - `src/client/MainMenuLayer.cpp`
 - `src/client/OpenGLRenderer.cpp`
@@ -80,7 +84,7 @@ Depends on:
 7. Server ticks at fixed `60 Hz`.
 8. Server sends `ServerSnapshot` packets.
 9. Client updates camera/debug state from the latest snapshot.
-10. Client renders the grid through `OpenGLRenderer`, then renders the crosshair and debug overlay through Dear ImGui.
+10. Client renders the solid test cube and debug grid through `OpenGLRenderer`, then renders the crosshair and debug overlay through Dear ImGui.
 11. On client shutdown, client sends `Disconnect`.
 12. Server clears the connected client on explicit disconnect or timeout.
 
@@ -531,19 +535,20 @@ Shuts down ImGui OpenGL3 and SDL3 backends, destroys the ImGui context, and mark
 
 ### `src/client/OpenGLRenderer.hpp/.cpp`
 
-Minimal OpenGL debug renderer.
+High-level OpenGL frame renderer.
 
 #### `class OpenGLRenderer`
 
-Owns OpenGL debug rendering resources.
+Owns high-level OpenGL rendering resources.
 
 Members:
 
 - `int width_`
 - `int height_`
-- `unsigned int program_`
-- `unsigned int vertexArray_`
-- `unsigned int vertexBuffer_`
+- `bool initialized_`
+- `glm::vec3 objectColor_`
+- `SolidMeshRenderer solidMeshRenderer_`
+- `DebugLineRenderer debugLineRenderer_`
 
 #### `~OpenGLRenderer()`
 
@@ -563,42 +568,45 @@ Behavior:
 - Clears the screen.
 - Enables depth testing.
 - Requests the camera view/projection matrix from `Camera`.
+- Draws a configurable-color solid cube.
 - Draws a world-space X/Z floor grid.
 - Draws red/blue axis hints at world origin.
 
 #### `shutdown()`
 
-Deletes OpenGL buffer, vertex array, and shader program if they exist. Must be called before the SDL OpenGL context is destroyed.
+Deletes owned OpenGL resources through graphics helper classes. Must be called before the SDL OpenGL context is destroyed.
 
 #### `initialize()`
 
-Loads required OpenGL function pointers through `SDL_GL_GetProcAddress`, creates the shader program, vertex array object, vertex buffer object, and vertex attribute layout.
+Loads required OpenGL function pointers and initializes graphics helper classes.
+
+### `src/client/graphics/OpenGLFunctions.hpp/.cpp`
+
+Centralizes OpenGL function pointer declarations and loading through `SDL_GL_GetProcAddress`.
+
+### `src/client/graphics/ShaderProgram.hpp/.cpp`
+
+Owns OpenGL shader program lifecycle, shader compile/link logging, `use()`, and uniform upload.
+
+### `src/client/graphics/SolidColorShaders.hpp`
+
+Contains embedded GLSL source strings for solid-color mesh rendering. Shaders are compiled into the executable and do not require runtime shader files.
+
+### `src/client/graphics/SolidMeshRenderer.hpp/.cpp`
+
+Owns a static cube mesh, VAO/VBO resources, solid-color shader program, and `glDrawArrays` triangle submission.
+
+### `src/client/graphics/DebugLineShaders.hpp`
+
+Contains embedded GLSL source strings for the debug line shader. Shaders are compiled into the executable and do not require runtime shader files.
+
+### `src/client/graphics/DebugLineRenderer.hpp/.cpp`
+
+Owns debug-line vertex format, VAO/VBO resources, shader program, vertex upload, and `glDrawArrays` submission.
 
 ## Internal Renderer Helpers
 
-`OpenGLRenderer.cpp` has private helper functions and types in an anonymous namespace.
-
-### OpenGL Function Loading
-
-The renderer manually loads modern OpenGL functions needed for shaders, buffers, VAOs, uniforms, and program management.
-
-### `struct Vertex`
-
-Single debug vertex with position and color.
-
-### Shader Helpers
-
-`compileShader` compiles GLSL shader source and logs compile errors.
-
-`createProgram` creates the simple colored-vertex shader program.
-
-### Geometry Helpers
-
 `addLine` appends two line vertices.
-
-### `drawVertices(...)`
-
-Uploads vertices to the dynamic vertex buffer and issues `glDrawArrays`.
 
 ## Current Limitations
 

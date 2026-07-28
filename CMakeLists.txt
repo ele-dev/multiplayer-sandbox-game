@@ -81,6 +81,10 @@ add_executable(game_client
     src/client/Event.cpp
     src/client/Camera.cpp
     src/client/DearImGuiContext.cpp
+    src/client/graphics/DebugLineRenderer.cpp
+    src/client/graphics/OpenGLFunctions.cpp
+    src/client/graphics/ShaderProgram.cpp
+    src/client/graphics/SolidMeshRenderer.cpp
     src/client/LayerStack.cpp
     src/client/MainMenuLayer.cpp
     src/client/OpenGLRenderer.cpp
