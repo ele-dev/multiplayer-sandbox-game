@@ -1,6 +1,9 @@
 #pragma once
 
+#include <SDL3/SDL_events.h>
 #include <SDL3/SDL_scancode.h>
+
+#include <optional>
 
 namespace game {
 
@@ -10,6 +13,8 @@ enum class EventType {
     MouseMove,
     MouseButtonDown,
     MouseButtonUp,
+    MouseWheel,
+    TextInput,
     WindowResized,
     Quit
 };
@@ -21,9 +26,13 @@ struct Event {
     union {
         struct { SDL_Scancode scancode; } key;
         struct { int button; float x; float y; } mouseButton;
-        struct { float xrel; float yrel; } mouseMove;
+        struct { float x; float y; float xrel; float yrel; } mouseMove;
+        struct { float x; float y; } mouseWheel;
+        struct { char text[32]; } textInput;
         struct { int width; int height; } windowResize;
     };
 };
+
+std::optional<Event> convertSdlEvent(const SDL_Event& sdlEvent);
 
 } // namespace game

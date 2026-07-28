@@ -2,13 +2,13 @@
 
 #include "net/Serialization.hpp"
 
+#include <SDL3/SDL_scancode.h>
+
 #include <iostream>
-#include <cstdio>
 
 namespace game {
 
 ViewportLayer::ViewportLayer(
-    Input& input,
     Camera& camera,
     RenderDebugState& debugState,
     OpenGLRenderer& renderer,
@@ -18,8 +18,7 @@ ViewportLayer::ViewportLayer(
     PauseToggleCallback onPauseToggle,
     ReturnToStartCallback onReturnToStart
 )
-    : input_(input)
-    , camera_(camera)
+    : camera_(camera)
     , debugState_(debugState)
     , renderer_(renderer)
     , transport_(transport)
@@ -31,6 +30,15 @@ ViewportLayer::ViewportLayer(
 void ViewportLayer::onAttach() {
     isPaused_ = false;
     disconnectSent_ = false;
+    forward_ = false;
+    backward_ = false;
+    left_ = false;
+    right_ = false;
+    lookUp_ = false;
+    lookDown_ = false;
+    lookLeft_ = false;
+    lookRight_ = false;
+    lookDelta_ = {};
     inputSequence_ = 0;
     clientTick_ = 0;
 }
@@ -45,8 +53,9 @@ void ViewportLayer::onDetach() {
 }
 
 void ViewportLayer::onUpdate() {
-    const auto command = input_.command(++inputSequence_, ++clientTick_);
-    transport_.sendTo(serverEndpoint_, serializeClientInput(command));
+    const auto inputCommand = command(++inputSequence_, ++clientTick_);
+    transport_.sendTo(serverEndpoint_, serializeClientInput(inputCommand));
+    lookDelta_ = {};
 
     processNetwork();
 
@@ -55,16 +64,80 @@ void ViewportLayer::onUpdate() {
 
 void ViewportLayer::onEvent(Event& event) {
     if (event.type == EventType::KeyDown && event.key.scancode == SDL_SCANCODE_ESCAPE) {
-        printf("[ViewportLayer] ESC key handled, toggling pause from %d to %d\n", isPaused_, !isPaused_);
         isPaused_ = !isPaused_;
         if (onPauseToggle_) {
             onPauseToggle_(isPaused_);
         }
+        event.handled = true;
+        return;
+    }
+
+    if (event.type == EventType::MouseMove) {
+        lookDelta_.x += event.mouseMove.xrel;
+        lookDelta_.y -= event.mouseMove.yrel;
+        event.handled = true;
+        return;
+    }
+
+    if (event.type != EventType::KeyDown && event.type != EventType::KeyUp) {
+        return;
+    }
+
+    const bool pressed = event.type == EventType::KeyDown;
+    switch (event.key.scancode) {
+    case SDL_SCANCODE_W:
+        forward_ = pressed;
+        event.handled = true;
+        break;
+    case SDL_SCANCODE_S:
+        backward_ = pressed;
+        event.handled = true;
+        break;
+    case SDL_SCANCODE_A:
+        left_ = pressed;
+        event.handled = true;
+        break;
+    case SDL_SCANCODE_D:
+        right_ = pressed;
+        event.handled = true;
+        break;
+    case SDL_SCANCODE_UP:
+        lookUp_ = pressed;
+        event.handled = true;
+        break;
+    case SDL_SCANCODE_DOWN:
+        lookDown_ = pressed;
+        event.handled = true;
+        break;
+    case SDL_SCANCODE_LEFT:
+        lookLeft_ = pressed;
+        event.handled = true;
+        break;
+    case SDL_SCANCODE_RIGHT:
+        lookRight_ = pressed;
+        event.handled = true;
+        break;
+    default:
+        break;
     }
 }
 
 bool ViewportLayer::wantsRelativeMouse() const {
     return !isPaused_;
+}
+
+ClientInputCommand ViewportLayer::command(std::uint32_t sequence, std::uint64_t clientTick) const {
+    constexpr float keyboardLookDeltaPerFrame = 8.0f;
+
+    ClientInputCommand result;
+    result.sequence = sequence;
+    result.clientTick = clientTick;
+    result.movement.x = (right_ ? 1.0f : 0.0f) - (left_ ? 1.0f : 0.0f);
+    result.movement.y = (forward_ ? 1.0f : 0.0f) - (backward_ ? 1.0f : 0.0f);
+    result.lookDelta = lookDelta_;
+    result.lookDelta.x += ((lookRight_ ? 1.0f : 0.0f) - (lookLeft_ ? 1.0f : 0.0f)) * keyboardLookDeltaPerFrame;
+    result.lookDelta.y += ((lookUp_ ? 1.0f : 0.0f) - (lookDown_ ? 1.0f : 0.0f)) * keyboardLookDeltaPerFrame;
+    return result;
 }
 
 void ViewportLayer::processNetwork() {

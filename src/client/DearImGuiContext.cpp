@@ -1,4 +1,4 @@
-#include "client/GuiLayer.hpp"
+#include "client/DearImGuiContext.hpp"
 
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
@@ -6,11 +6,11 @@
 
 namespace game {
 
-GuiLayer::~GuiLayer() {
+DearImGuiContext::~DearImGuiContext() {
     shutdown();
 }
 
-bool GuiLayer::initialize(SDL_Window* window, SDL_GLContext glContext) {
+bool DearImGuiContext::initialize(SDL_Window* window, SDL_GLContext glContext) {
     if (initialized_) {
         return true;
     }
@@ -43,14 +43,14 @@ bool GuiLayer::initialize(SDL_Window* window, SDL_GLContext glContext) {
     return true;
 }
 
-void GuiLayer::processEvent(const SDL_Event& event) {
+void DearImGuiContext::processEvent(const SDL_Event& event) {
     if (!initialized_) {
         return;
     }
     ImGui_ImplSDL3_ProcessEvent(&event);
 }
 
-void GuiLayer::beginFrame() {
+void DearImGuiContext::beginFrame() {
     if (!initialized_) {
         return;
     }
@@ -60,7 +60,7 @@ void GuiLayer::beginFrame() {
     ImGui::NewFrame();
 }
 
-void GuiLayer::endFrame() {
+void DearImGuiContext::endFrame() {
     if (!initialized_) {
         return;
     }
@@ -69,7 +69,7 @@ void GuiLayer::endFrame() {
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-void GuiLayer::shutdown() {
+void DearImGuiContext::shutdown() {
     if (!initialized_) {
         return;
     }
