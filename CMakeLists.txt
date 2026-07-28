@@ -77,7 +77,6 @@ target_link_libraries(game_server PRIVATE game_shared game_net)
 add_executable(game_client
     src/client/main.cpp
     src/client/ClientApplication.cpp
-    src/client/ConnectLayer.cpp
     src/client/DebugOverlayLayer.cpp
     src/client/Event.cpp
     src/client/Camera.cpp

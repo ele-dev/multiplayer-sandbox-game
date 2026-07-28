@@ -57,6 +57,7 @@ Graphical game client executable:
 - `src/client/DearImGuiContext.cpp`
 - `src/client/Event.cpp`
 - `src/client/LayerStack.cpp`
+- `src/client/MainMenuLayer.cpp`
 - `src/client/OpenGLRenderer.cpp`
 - `src/client/ViewportLayer.cpp`
 
@@ -606,6 +607,6 @@ Uploads vertices to the dynamic vertex buffer and issues `glDrawArrays`.
 - Server uses the latest input only; it does not buffer per-tick input.
 - `ServerWelcome` is serialized but not fully deserialized by the client.
 - Renderer is debug-only and not yet a real scene/rendering abstraction.
-- Dear ImGui is currently used for debug UI only; there are no interactive game menus yet.
+- Dear ImGui currently powers the main/connect menu pages and debug UI.
 - Mouse-look may be unreliable under WSL2/WSLg, so arrow keys provide fallback camera look.
 - Server runs forever and currently relies on process termination for shutdown.

@@ -1,5 +1,4 @@
 #include "client/ClientApplication.hpp"
-#include "client/ConnectLayer.hpp"
 #include "client/DebugOverlayLayer.hpp"
 #include "client/HudLayer.hpp"
 #include "client/MainMenuLayer.hpp"
@@ -27,7 +26,7 @@ int ClientApplication::run() {
     }
 
     layerStack_.requestPushLayer(std::make_unique<MainMenuLayer>(
-        [this]() { requestPlay(); },
+        [this](const std::string& ip) { requestConnect(ip); },
         [this]() { running_ = false; }
     ));
     layerStack_.applyPendingChanges();
@@ -141,14 +140,6 @@ void ClientApplication::updateRelativeMouse() {
     SDL_SetWindowRelativeMouseMode(window_, wanted);
 }
 
-void ClientApplication::requestPlay() {
-    layerStack_.requestClear();
-    layerStack_.requestPushLayer(std::make_unique<ConnectLayer>(
-        [this](const std::string& ip) { requestConnect(ip); },
-        [this]() { requestReturnToStart(); }
-    ));
-}
-
 void ClientApplication::requestConnect(const std::string& ip) {
     serverEndpoint_ = {ip, defaultServerPort};
     if (!transport_.open(0)) {
@@ -201,7 +192,7 @@ void ClientApplication::requestReturnToStart() {
     layerStack_.requestClear();
 
     layerStack_.requestPushLayer(std::make_unique<MainMenuLayer>(
-        [this]() { requestPlay(); },
+        [this](const std::string& ip) { requestConnect(ip); },
         [this]() { running_ = false; }
     ));
 }

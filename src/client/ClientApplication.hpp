@@ -30,7 +30,6 @@ private:
     void processEvents();
     void updateRelativeMouse();
 
-    void requestPlay();
     void requestConnect(const std::string& ip);
     void requestReturnToStart();
     void onPauseToggled(bool paused);
