@@ -4,8 +4,10 @@
 
 #include <glm/glm.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <iostream>
+#include <limits>
 #include <thread>
 
 namespace game {
@@ -61,7 +63,12 @@ void ServerApplication::loadConfig() {
 
     std::cout << "Loaded server.cfg\n";
 
-    port_ = static_cast<std::uint16_t>(config_.getInt("server.port", port_));
+    const int configuredPort = config_.getInt("server.port", port_);
+    port_ = static_cast<std::uint16_t>(std::clamp(
+        configuredPort,
+        1,
+        static_cast<int>(std::numeric_limits<std::uint16_t>::max())
+    ));
 
     const int tickRate = config_.getInt("server.tick_rate", 60);
     tickSeconds_ = 1.0 / std::max(tickRate, 1);
@@ -118,8 +125,6 @@ void ServerApplication::processNetwork() {
             }
             if (isCurrentClient(packet->from)) {
                 lastClientPacketTime_ = std::chrono::steady_clock::now();
-            }
-            if (isCurrentClient(packet->from)) {
                 const auto input = deserializeClientInput(packet->bytes);
                 if (!input) {
                     continue;

@@ -18,7 +18,7 @@ void PauseMenuLayer::onEvent(Event& event) {
         if (onResume_) {
             onResume_();
         }
-        event.handled = true;
+        event.consumed = true;
         return;
     }
 }

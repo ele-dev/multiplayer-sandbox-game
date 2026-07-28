@@ -129,7 +129,7 @@ void ClientApplication::processEvents() {
             continue;
         }
 
-        // Handle addtional application wide events here
+        // Handle additional application-wide events here
         // ...
 
         layerStack_.onEvent(*event);

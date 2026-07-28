@@ -103,7 +103,7 @@ void LayerStack::onEvent(Event& event) {
 
         layer->onEvent(event);
 
-        if (layer->isBlocking()) {
+        if (event.consumed || layer->isBlocking()) {
             break;
         }
     }

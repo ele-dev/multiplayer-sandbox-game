@@ -3,6 +3,7 @@
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_scancode.h>
 
+#include <array>
 #include <optional>
 
 namespace game {
@@ -21,14 +22,14 @@ enum class EventType {
 
 struct Event {
     EventType type;
-    bool handled = false;
+    bool consumed = false;
 
     union {
         struct { SDL_Scancode scancode; } key;
         struct { int button; float x; float y; } mouseButton;
         struct { float x; float y; float xrel; float yrel; } mouseMove;
         struct { float x; float y; } mouseWheel;
-        struct { char text[32]; } textInput;
+        struct { std::array<char, 32> text; } textInput;
         struct { int width; int height; } windowResize;
     };
 };

@@ -53,10 +53,12 @@ Graphical game client executable:
 
 - `src/client/main.cpp`
 - `src/client/ClientApplication.cpp`
-- `src/client/Input.cpp`
 - `src/client/Camera.cpp`
-- `src/client/GuiLayer.cpp`
+- `src/client/DearImGuiContext.cpp`
+- `src/client/Event.cpp`
+- `src/client/LayerStack.cpp`
 - `src/client/OpenGLRenderer.cpp`
+- `src/client/ViewportLayer.cpp`
 
 Depends on:
 
@@ -83,52 +85,7 @@ Depends on:
 
 ## Shared Module
 
-### `src/shared/Math.hpp`
-
-Contains minimal math primitives and helpers.
-
-#### `struct Vec2`
-
-Two-dimensional float vector.
-
-Members:
-
-- `float x`
-- `float y`
-
-Used for movement input axes and look delta input.
-
-#### `struct Vec3`
-
-Three-dimensional float vector.
-
-Members:
-
-- `float x`
-- `float y`
-- `float z`
-
-Used for player position and renderer camera calculations.
-
-#### `operator+(Vec3 left, Vec3 right)`
-
-Adds two `Vec3` values component-wise.
-
-#### `operator*(Vec3 value, float scalar)`
-
-Scales a `Vec3` by a float.
-
-#### `length(Vec2 value)`
-
-Returns Euclidean length of a `Vec2`.
-
-#### `normalize(Vec2 value)`
-
-Returns a normalized `Vec2`. If length is near zero, returns `{}` to avoid division by zero.
-
-#### `clamp(float value, float minValue, float maxValue)`
-
-Restricts a float to a min/max range. Used to clamp camera pitch.
+Shared code uses GLM vector and math types directly instead of project-local math primitives.
 
 ### `src/shared/PlayerState.hpp`
 
@@ -139,7 +96,7 @@ Defines authoritative player state shared by server and client.
 Members:
 
 - `std::uint32_t playerId`
-- `Vec3 position`
+- `glm::vec3 position`
 - `float yawRadians`
 - `float pitchRadians`
 
@@ -175,8 +132,8 @@ Members:
 
 - `sequence`: client-side packet/input sequence number.
 - `clientTick`: monotonically increasing client tick counter.
-- `movement`: `Vec2` movement axis from WASD.
-- `lookDelta`: `Vec2` camera look delta from mouse or arrow keys.
+- `movement`: `glm::vec2` movement axis from WASD.
+- `lookDelta`: `glm::vec2` camera look delta from mouse or arrow keys.
 
 #### `struct ServerSnapshot`
 
@@ -445,24 +402,22 @@ SDL/OpenGL/Dear ImGui client application.
 
 #### `class ClientApplication`
 
-Owns the client lifecycle, SDL window, OpenGL context, input, camera, ImGui layer, renderer, UDP transport, and current network/debug state.
+Owns the client lifecycle, SDL window, OpenGL context, camera, Dear ImGui context, renderer, UDP transport, layer stack, and current network/debug state.
 
 Members:
 
 - `SDL_Window* window_`
 - `SDL_GLContext glContext_`
-- `Input input_`
 - `Camera camera_`
 - `RenderDebugState debugState_`
-- `GuiLayer guiLayer_`
+- `DearImGuiContext dearImGuiContext_`
 - `OpenGLRenderer renderer_`
 - `UdpTransport transport_`
+- `LayerStack layerStack_`
 - `NetworkEndpoint serverEndpoint_`
 - `bool running_`
+- `bool isPaused_`
 - `bool transportOpen_`
-- `bool disconnectSent_`
-- `std::uint32_t inputSequence_`
-- `std::uint64_t clientTick_`
 
 #### `~ClientApplication()`
 
@@ -474,9 +429,8 @@ Runs the client main loop.
 
 Behavior:
 
-- Initializes SDL, OpenGL, Dear ImGui, renderer viewport, and UDP socket.
-- Sends `ClientHello`.
-- Each frame resets input deltas, processes SDL events, sends input, receives packets, renders the 3D grid, renders ImGui, swaps buffers, and delays 1 ms.
+- Initializes SDL, OpenGL, Dear ImGui, renderer viewport, and the main menu layer.
+- Each frame processes SDL events, applies deferred layer changes, updates layers, renders the 3D grid and GUI layers, swaps buffers, and delays 1 ms.
 
 #### `initialize()`
 
@@ -489,75 +443,19 @@ Behavior:
 - Creates a resizable SDL OpenGL window.
 - Creates the OpenGL context.
 - Enables vsync.
-- Enables SDL relative mouse mode.
 - Initializes the Dear ImGui SDL3/OpenGL3 backends.
-- Opens UDP socket on an ephemeral port.
 
 #### `shutdown()`
 
-Sends disconnect, closes UDP transport, shuts down Dear ImGui, shuts down renderer resources, destroys OpenGL context, destroys SDL window, and calls `SDL_Quit()`.
+Closes UDP transport if open, shuts down Dear ImGui, shuts down renderer resources, destroys OpenGL context, destroys SDL window, and calls `SDL_Quit()`.
 
 #### `processEvents()`
 
-Polls SDL events, forwards events to Dear ImGui, updates viewport on resize, forwards events to `Input`, and stops the loop if quit was requested.
+Polls SDL events, forwards raw events to Dear ImGui, converts supported SDL events to `game::Event`, updates viewport/layers on resize, routes layer events, and stops the loop if quit was requested.
 
-#### `processNetwork()`
+#### `requestConnect(const std::string& ip)`
 
-Consumes available UDP packets. Marks connection state on `ServerWelcome`; applies camera/debug state on `ServerSnapshot`.
-
-#### `sendInput()`
-
-Builds a `ClientInputCommand` from current input state and sends it to the server.
-
-#### `sendDisconnect()`
-
-Sends one `Disconnect` packet if the transport is open and no disconnect was already sent.
-
-### `src/client/Input.hpp/.cpp`
-
-Converts SDL events into protocol-level client input commands.
-
-#### `class Input`
-
-Tracks keyboard/mouse state.
-
-Members:
-
-- `quitRequested_`
-- `forward_`
-- `backward_`
-- `left_`
-- `right_`
-- `lookUp_`
-- `lookDown_`
-- `lookLeft_`
-- `lookRight_`
-- `lookDelta_`
-
-#### `beginFrame()`
-
-Clears accumulated mouse look delta for the new frame.
-
-#### `handleEvent(const SDL_Event& event)`
-
-Processes SDL quit, mouse motion, and keyboard events.
-
-Controls:
-
-- `Escape`: quit.
-- `W`: forward.
-- `S`: backward.
-- `A`: strafe left.
-- `D`: strafe right.
-- Arrow keys: keyboard camera look fallback.
-
-#### `command(std::uint32_t sequence, std::uint64_t clientTick) const`
-
-Builds a `ClientInputCommand`. Encodes WASD movement, mouse look delta, and arrow-key look delta.
-
-#### `quitRequested() const`
-
-Returns whether the user requested quit.
+Opens the client UDP socket, sends `ClientHello`, and replaces the menu/connect layers with gameplay and overlay layers.
 
 ### `src/client/Camera.hpp/.cpp`
 
@@ -577,9 +475,9 @@ Copies authoritative player state into camera state.
 
 Returns current camera/player state.
 
-### `src/client/GuiLayer.hpp/.cpp`
+### `src/client/DearImGuiContext.hpp/.cpp`
 
-Owns Dear ImGui lifecycle, SDL event forwarding, 2D debug UI, crosshair rendering, and future 2D GUI elements.
+Owns Dear ImGui lifecycle and raw SDL event forwarding.
 
 #### `struct RenderDebugState`
 
@@ -592,7 +490,7 @@ Members:
 - `std::uint64_t serverTick`
 - `PlayerState player`
 
-#### `class GuiLayer`
+#### `class DearImGuiContext`
 
 Owns ImGui context and backend state.
 
@@ -600,7 +498,7 @@ Members:
 
 - `bool initialized_`
 
-#### `~GuiLayer()`
+#### `~DearImGuiContext()`
 
 Calls `shutdown()`.
 
@@ -612,9 +510,9 @@ Creates the ImGui context, enables keyboard navigation, applies the dark style, 
 
 Forwards SDL events to `ImGui_ImplSDL3_ProcessEvent` when initialized.
 
-#### `render(const RenderDebugState& debugState)`
+#### `beginFrame()` / `endFrame()`
 
-Starts a new ImGui frame, draws a foreground crosshair, draws the upper-right network debug overlay, and submits ImGui draw data through the OpenGL3 backend.
+Starts a new ImGui frame and submits ImGui draw data through the OpenGL3 backend. Individual GUI layers draw their own widgets and overlays.
 
 #### `shutdown()`
 

@@ -2,6 +2,7 @@
 
 #include <SDL3/SDL_events.h>
 
+#include <algorithm>
 #include <cstring>
 
 namespace game {
@@ -48,8 +49,11 @@ std::optional<Event> convertSdlEvent(const SDL_Event& sdlEvent) {
         return event;
     case SDL_EVENT_TEXT_INPUT:
         event.type = EventType::TextInput;
-        std::strncpy(event.textInput.text, sdlEvent.text.text, sizeof(event.textInput.text) - 1);
-        event.textInput.text[sizeof(event.textInput.text) - 1] = '\0';
+        std::copy_n(
+            sdlEvent.text.text,
+            std::min(std::strlen(sdlEvent.text.text), event.textInput.text.size() - 1),
+            event.textInput.text.data()
+        );
         return event;
     case SDL_EVENT_WINDOW_RESIZED:
         event.type = EventType::WindowResized;

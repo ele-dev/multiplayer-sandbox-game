@@ -68,14 +68,14 @@ void ViewportLayer::onEvent(Event& event) {
         if (onPauseToggle_) {
             onPauseToggle_(isPaused_);
         }
-        event.handled = true;
+        event.consumed = true;
         return;
     }
 
     if (event.type == EventType::MouseMove) {
         lookDelta_.x += event.mouseMove.xrel;
         lookDelta_.y -= event.mouseMove.yrel;
-        event.handled = true;
+        event.consumed = true;
         return;
     }
 
@@ -87,35 +87,35 @@ void ViewportLayer::onEvent(Event& event) {
     switch (event.key.scancode) {
     case SDL_SCANCODE_W:
         forward_ = pressed;
-        event.handled = true;
+        event.consumed = true;
         break;
     case SDL_SCANCODE_S:
         backward_ = pressed;
-        event.handled = true;
+        event.consumed = true;
         break;
     case SDL_SCANCODE_A:
         left_ = pressed;
-        event.handled = true;
+        event.consumed = true;
         break;
     case SDL_SCANCODE_D:
         right_ = pressed;
-        event.handled = true;
+        event.consumed = true;
         break;
     case SDL_SCANCODE_UP:
         lookUp_ = pressed;
-        event.handled = true;
+        event.consumed = true;
         break;
     case SDL_SCANCODE_DOWN:
         lookDown_ = pressed;
-        event.handled = true;
+        event.consumed = true;
         break;
     case SDL_SCANCODE_LEFT:
         lookLeft_ = pressed;
-        event.handled = true;
+        event.consumed = true;
         break;
     case SDL_SCANCODE_RIGHT:
         lookRight_ = pressed;
-        event.handled = true;
+        event.consumed = true;
         break;
     default:
         break;

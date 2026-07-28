@@ -14,6 +14,7 @@
 
 #include <array>
 #include <cstring>
+#include <limits>
 
 namespace game {
 namespace {
@@ -100,6 +101,9 @@ void UdpTransport::close() {
 
 bool UdpTransport::sendTo(const NetworkEndpoint& endpoint, const std::vector<std::uint8_t>& bytes) {
     if (socket_ == -1) {
+        return false;
+    }
+    if (bytes.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
         return false;
     }
 
