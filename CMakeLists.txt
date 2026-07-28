@@ -11,7 +11,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 FetchContent_Declare(
     glm
     GIT_REPOSITORY https://github.com/g-truc/glm.git
-    GIT_TAG 1.0.1
+    GIT_TAG 1.0.3
     GIT_SHALLOW TRUE
 )
 
@@ -79,9 +79,9 @@ add_executable(game_client
     src/client/ClientApplication.cpp
     src/client/ConnectLayer.cpp
     src/client/DebugOverlayLayer.cpp
-    src/client/Input.cpp
+    src/client/Event.cpp
     src/client/Camera.cpp
-    src/client/GuiLayer.cpp
+    src/client/DearImGuiContext.cpp
     src/client/LayerStack.cpp
     src/client/MainMenuLayer.cpp
     src/client/OpenGLRenderer.cpp

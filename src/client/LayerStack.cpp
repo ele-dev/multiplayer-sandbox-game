@@ -36,6 +36,48 @@ std::unique_ptr<Layer> LayerStack::popLayer() {
     return layer;
 }
 
+void LayerStack::requestPushLayer(std::unique_ptr<Layer> layer) {
+    pendingOperations_.push_back({PendingOperationType::PushLayer, std::move(layer)});
+}
+
+void LayerStack::requestPushOverlay(std::unique_ptr<Layer> layer) {
+    pendingOperations_.push_back({PendingOperationType::PushOverlay, std::move(layer)});
+}
+
+void LayerStack::requestPopLayer() {
+    pendingOperations_.push_back({PendingOperationType::PopLayer, nullptr});
+}
+
+void LayerStack::requestClear() {
+    pendingOperations_.push_back({PendingOperationType::Clear, nullptr});
+}
+
+void LayerStack::applyPendingChanges() {
+    while (!pendingOperations_.empty()) {
+        auto operations = std::move(pendingOperations_);
+        pendingOperations_.clear();
+
+        for (auto& operation : operations) {
+            switch (operation.type) {
+            case PendingOperationType::PushLayer:
+                pushLayer(std::move(operation.layer));
+                break;
+            case PendingOperationType::PushOverlay:
+                pushOverlay(std::move(operation.layer));
+                break;
+            case PendingOperationType::PopLayer:
+                popLayer();
+                break;
+            case PendingOperationType::Clear:
+                while (!layers_.empty()) {
+                    popLayer();
+                }
+                break;
+            }
+        }
+    }
+}
+
 void LayerStack::onUpdate() {
     for (auto& layer : layers_) {
         if (layer->isVisible()) {
@@ -61,7 +103,7 @@ void LayerStack::onEvent(Event& event) {
 
         layer->onEvent(event);
 
-        if (event.handled && layer->isBlocking()) {
+        if (layer->isBlocking()) {
             break;
         }
     }

@@ -1,10 +1,10 @@
 #pragma once
 
 #include "client/Camera.hpp"
-#include "client/GuiLayer.hpp"
-#include "client/Input.hpp"
+#include "client/DearImGuiContext.hpp"
 #include "client/LayerStack.hpp"
 #include "client/OpenGLRenderer.hpp"
+#include "client/RenderDebugState.hpp"
 #include "net/UdpTransport.hpp"
 
 #include <SDL3/SDL_video.h>
@@ -35,14 +35,11 @@ private:
     void requestReturnToStart();
     void onPauseToggled(bool paused);
 
-    Event convertEvent(const SDL_Event& sdlEvent) const;
-
     SDL_Window* window_ = nullptr;
     SDL_GLContext glContext_ = nullptr;
-    Input input_;
     Camera camera_;
     RenderDebugState debugState_;
-    GuiLayer guiLayer_;
+    DearImGuiContext dearImGuiContext_;
     OpenGLRenderer renderer_;
     UdpTransport transport_;
     LayerStack layerStack_;

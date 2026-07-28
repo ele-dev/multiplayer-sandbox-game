@@ -2,15 +2,15 @@
 
 #include "client/Camera.hpp"
 #include "client/Event.hpp"
-#include "client/GuiLayer.hpp"
-#include "client/Input.hpp"
 #include "client/Layer.hpp"
 #include "client/OpenGLRenderer.hpp"
+#include "client/RenderDebugState.hpp"
 #include "net/UdpTransport.hpp"
 #include "shared/Protocol.hpp"
 
 #include <cstdint>
 #include <functional>
+#include <glm/vec2.hpp>
 
 namespace game {
 
@@ -20,7 +20,6 @@ public:
     using ReturnToStartCallback = std::function<void()>;
 
     ViewportLayer(
-        Input& input,
         Camera& camera,
         RenderDebugState& debugState,
         OpenGLRenderer& renderer,
@@ -39,9 +38,9 @@ public:
     bool wantsRelativeMouse() const override;
 
 private:
+    ClientInputCommand command(std::uint32_t sequence, std::uint64_t clientTick) const;
     void processNetwork();
 
-    Input& input_;
     Camera& camera_;
     RenderDebugState& debugState_;
     OpenGLRenderer& renderer_;
@@ -51,6 +50,15 @@ private:
     PauseToggleCallback onPauseToggle_;
     ReturnToStartCallback onReturnToStart_;
     bool disconnectSent_ = false;
+    bool forward_ = false;
+    bool backward_ = false;
+    bool left_ = false;
+    bool right_ = false;
+    bool lookUp_ = false;
+    bool lookDown_ = false;
+    bool lookLeft_ = false;
+    bool lookRight_ = false;
+    glm::vec2 lookDelta_ = {};
     std::uint32_t inputSequence_ = 0;
     std::uint64_t clientTick_ = 0;
 };

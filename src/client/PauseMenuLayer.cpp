@@ -1,12 +1,27 @@
 #include "client/PauseMenuLayer.hpp"
 
+#include <SDL3/SDL_scancode.h>
+
 #include <imgui.h>
 
 namespace game {
 
 PauseMenuLayer::PauseMenuLayer(ResumeCallback onResume, ReturnToStartCallback onReturnToStart)
     : onResume_(std::move(onResume))
-    , onReturnToStart_(std::move(onReturnToStart)) {}
+    , onReturnToStart_(std::move(onReturnToStart)) 
+{
+    setBlocking(true);
+}
+
+void PauseMenuLayer::onEvent(Event& event) {
+    if (event.type == EventType::KeyDown && event.key.scancode == SDL_SCANCODE_ESCAPE) {
+        if (onResume_) {
+            onResume_();
+        }
+        event.handled = true;
+        return;
+    }
+}
 
 void PauseMenuLayer::onRender() {
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
