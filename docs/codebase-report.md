@@ -460,7 +460,7 @@ Opens the client UDP socket, sends `ClientHello`, and replaces the menu/connect 
 
 ### `src/client/Camera.hpp/.cpp`
 
-Stores render camera state derived from authoritative player snapshots.
+Stores render camera state derived from authoritative player snapshots and owns camera presentation math.
 
 #### `class Camera`
 
@@ -476,6 +476,14 @@ Copies authoritative player state into camera state.
 
 Returns current camera/player state.
 
+#### `forwardDirection() const`
+
+Returns the normalized look direction derived from player yaw and pitch.
+
+#### `viewProjectionMatrix(int width, int height) const`
+
+Builds the projection/view matrix used by renderers for world-space drawing.
+
 ### `src/client/DearImGuiContext.hpp/.cpp`
 
 Owns Dear ImGui lifecycle and raw SDL event forwarding.
@@ -486,6 +494,8 @@ Data displayed in the ImGui overlay.
 
 Members:
 
+- `float frameTimeMs`
+- `float framesPerSecond`
 - `bool connected`
 - `std::uint32_t snapshotSequence`
 - `std::uint64_t serverTick`
@@ -552,7 +562,7 @@ Behavior:
 - Lazily initializes OpenGL resources.
 - Clears the screen.
 - Enables depth testing.
-- Builds a perspective camera from authoritative player position/yaw/pitch.
+- Requests the camera view/projection matrix from `Camera`.
 - Draws a world-space X/Z floor grid.
 - Draws red/blue axis hints at world origin.
 
@@ -575,14 +585,6 @@ The renderer manually loads modern OpenGL functions needed for shaders, buffers,
 ### `struct Vertex`
 
 Single debug vertex with position and color.
-
-### `struct Mat4`
-
-Column-major 4x4 matrix backed by `std::array<float, 16>`.
-
-### Vector/Matrix Helpers
-
-Private helpers include `dot`, `cross`, `normalize`, `multiply`, `perspective`, and `lookAt`.
 
 ### Shader Helpers
 

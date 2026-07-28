@@ -12,9 +12,19 @@
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_timer.h>
 
+#include <algorithm>
+#include <chrono>
+#include <cmath>
 #include <iostream>
 
 namespace game {
+
+namespace {
+
+constexpr float frameTimeSmoothingAlpha = 0.08f;
+constexpr float maxDisplayedFrameTimeMs = 250.0f;
+
+} // namespace
 
 ClientApplication::~ClientApplication() {
     shutdown();
@@ -32,6 +42,8 @@ int ClientApplication::run() {
     layerStack_.applyPendingChanges();
 
     while (running_) {
+        updateFrameTiming();
+
         processEvents();
         layerStack_.applyPendingChanges();
 
@@ -105,6 +117,32 @@ void ClientApplication::shutdown() {
         window_ = nullptr;
     }
     SDL_Quit();
+}
+
+void ClientApplication::updateFrameTiming() {
+    const auto now = std::chrono::steady_clock::now();
+    if (!hasFrameTime_) {
+        lastFrameTime_ = now;
+        hasFrameTime_ = true;
+        return;
+    }
+
+    const std::chrono::duration<float, std::milli> elapsed = now - lastFrameTime_;
+    lastFrameTime_ = now;
+
+    if (elapsed.count() <= 0.0f || !std::isfinite(elapsed.count())) {
+        return;
+    }
+
+    const float frameTimeMs = std::min(elapsed.count(), maxDisplayedFrameTimeMs);
+    if (smoothedFrameTimeMs_ <= 0.0f) {
+        smoothedFrameTimeMs_ = frameTimeMs;
+    } else {
+        smoothedFrameTimeMs_ += frameTimeSmoothingAlpha * (frameTimeMs - smoothedFrameTimeMs_);
+    }
+
+    debugState_.frameTimeMs = smoothedFrameTimeMs_;
+    debugState_.framesPerSecond = smoothedFrameTimeMs_ > 0.0f ? 1000.0f / smoothedFrameTimeMs_ : 0.0f;
 }
 
 void ClientApplication::processEvents() {

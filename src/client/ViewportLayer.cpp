@@ -53,7 +53,7 @@ void ViewportLayer::onDetach() {
 }
 
 void ViewportLayer::onUpdate() {
-    const auto inputCommand = command(++inputSequence_, ++clientTick_);
+    const auto inputCommand = buildInputCommand(++inputSequence_, ++clientTick_);
     transport_.sendTo(serverEndpoint_, serializeClientInput(inputCommand));
     lookDelta_ = {};
 
@@ -126,7 +126,7 @@ bool ViewportLayer::wantsRelativeMouse() const {
     return !isPaused_;
 }
 
-ClientInputCommand ViewportLayer::command(std::uint32_t sequence, std::uint64_t clientTick) const {
+ClientInputCommand ViewportLayer::buildInputCommand(std::uint32_t sequence, std::uint64_t clientTick) const {
     constexpr float keyboardLookDeltaPerFrame = 8.0f;
 
     ClientInputCommand result;

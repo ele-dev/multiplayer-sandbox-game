@@ -38,7 +38,7 @@ public:
     bool wantsRelativeMouse() const override;
 
 private:
-    ClientInputCommand command(std::uint32_t sequence, std::uint64_t clientTick) const;
+    ClientInputCommand buildInputCommand(std::uint32_t sequence, std::uint64_t clientTick) const;
     void processNetwork();
 
     Camera& camera_;

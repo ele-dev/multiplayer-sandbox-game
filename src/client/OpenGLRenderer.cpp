@@ -4,11 +4,9 @@
 #include <SDL3/SDL_video.h>
 
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include <array>
-#include <cmath>
 #include <iostream>
 #include <vector>
 
@@ -219,19 +217,7 @@ void OpenGLRenderer::render(const Camera& camera) {
     glClearColor(0.04f, 0.06f, 0.09f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    const auto& player = camera.player();
-    const float cosPitch = std::cos(player.pitchRadians);
-    const glm::vec3 eye = player.position;
-    const glm::vec3 forward = {
-        std::sin(player.yawRadians) * cosPitch,
-        std::sin(player.pitchRadians),
-        -std::cos(player.yawRadians) * cosPitch,
-    };
-
-    const float aspect = static_cast<float>(width_) / static_cast<float>(height_ > 0 ? height_ : 1);
-    const glm::mat4 projection = glm::perspective(glm::radians(70.0f), aspect, 0.05f, 200.0f);
-    const glm::mat4 view = glm::lookAt(eye, eye + forward, glm::vec3(0.0f, 1.0f, 0.0f));
-    const glm::mat4 worldMvp = projection * view;
+    const glm::mat4 worldMvp = camera.viewProjectionMatrix(width_, height_);
 
     std::vector<Vertex> worldLines;
     worldLines.reserve(84);
