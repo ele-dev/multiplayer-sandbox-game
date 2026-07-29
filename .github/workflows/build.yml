@@ -75,6 +75,9 @@ jobs:
           cp server.cfg package/linux/
           find build -name 'libSDL3.so*' -type f -exec cp -P {} package/linux/ \;
           find build -name 'libGameNetworkingSockets.so*' -type f -exec cp -P {} package/linux/ \;
+          ldd build/bin/libGameNetworkingSockets.so \
+            | awk '/libprotobuf\.so|libcrypto\.so/ { print $3 }' \
+            | xargs -r -I {} cp -L {} package/linux/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

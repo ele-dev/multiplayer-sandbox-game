@@ -134,3 +134,6 @@ target_strict_warnings(game_client)
 
 target_linux_runtime_paths(game_server)
 target_linux_runtime_paths(game_client)
+if(TARGET GameNetworkingSockets)
+    target_linux_runtime_paths(GameNetworkingSockets)
+endif()
