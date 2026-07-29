@@ -20,8 +20,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            libprotobuf-dev \
+            libssl-dev \
             ninja-build \
             pkg-config \
+            protobuf-compiler \
             libasound2-dev \
             libdbus-1-dev \
             libdecor-0-dev \
@@ -71,6 +74,7 @@ jobs:
           cp build/game_server package/linux/
           cp server.cfg package/linux/
           find build -name 'libSDL3.so*' -type f -exec cp -P {} package/linux/ \;
+          find build -name 'libGameNetworkingSockets.so*' -type f -exec cp -P {} package/linux/ \;
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -86,8 +90,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: vcpkg install protobuf:x64-windows
+
       - name: Configure
-        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T v143 -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL
+        shell: pwsh
+        run: >-
+          cmake -S . -B build
+          -G "Visual Studio 17 2022"
+          -A x64
+          -T v143
+          -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL
+          -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+          -DVCPKG_TARGET_TRIPLET=x64-windows
 
       - name: Build
         shell: pwsh
@@ -102,7 +117,8 @@ jobs:
           Copy-Item build/Release/game_client.exe package/windows/
           Copy-Item build/Release/game_server.exe package/windows/
           Copy-Item server.cfg package/windows/
-          Get-ChildItem -Path build -Recurse -Filter SDL3.dll | ForEach-Object { Copy-Item $_.FullName package/windows/ }
+          Get-ChildItem -Path build -Recurse -Filter *.dll | ForEach-Object { Copy-Item $_.FullName package/windows/ }
+          Get-ChildItem -Path "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/bin" -Filter *.dll | ForEach-Object { Copy-Item $_.FullName package/windows/ }
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
