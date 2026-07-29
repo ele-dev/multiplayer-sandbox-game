@@ -5,7 +5,7 @@
 #include "client/Layer.hpp"
 #include "client/OpenGLRenderer.hpp"
 #include "client/RenderDebugState.hpp"
-#include "net/UdpTransport.hpp"
+#include "net/NetworkTransport.hpp"
 #include "shared/Protocol.hpp"
 
 #include <cstdint>
@@ -23,7 +23,7 @@ public:
         Camera& camera,
         RenderDebugState& debugState,
         OpenGLRenderer& renderer,
-        UdpTransport& transport,
+        NetworkTransport& transport,
         const NetworkEndpoint& serverEndpoint,
         bool& isPaused,
         PauseToggleCallback onPauseToggle,
@@ -44,7 +44,7 @@ private:
     Camera& camera_;
     RenderDebugState& debugState_;
     OpenGLRenderer& renderer_;
-    UdpTransport& transport_;
+    NetworkTransport& transport_;
     NetworkEndpoint serverEndpoint_;
     bool& isPaused_;
     PauseToggleCallback onPauseToggle_;

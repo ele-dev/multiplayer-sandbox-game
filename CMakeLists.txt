@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(multiplayer_game LANGUAGES CXX)
+project(multiplayer_game LANGUAGES C CXX)
 
 include(FetchContent)
 
@@ -29,8 +29,29 @@ FetchContent_Declare(
     GIT_SHALLOW TRUE
 )
 
+FetchContent_Declare(
+    GameNetworkingSockets
+    GIT_REPOSITORY https://github.com/ValveSoftware/GameNetworkingSockets.git
+    GIT_TAG v1.6.0
+    GIT_SHALLOW TRUE
+)
+
 set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
+set(BUILD_STATIC_LIB OFF CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIB ON CACHE BOOL "" FORCE)
+set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(BUILD_TOOLS OFF CACHE BOOL "" FORCE)
+set(ENABLE_ICE OFF CACHE BOOL "" FORCE)
+set(USE_STEAMWEBRTC OFF CACHE BOOL "" FORCE)
+if(WIN32)
+    set(USE_CRYPTO BCrypt CACHE STRING "" FORCE)
+else()
+    set(USE_CRYPTO OpenSSL CACHE STRING "" FORCE)
+endif()
+
 FetchContent_MakeAvailable(glm)
+FetchContent_MakeAvailable(GameNetworkingSockets)
 FetchContent_MakeAvailable(SDL3)
 FetchContent_MakeAvailable(imgui)
 
@@ -58,15 +79,11 @@ target_include_directories(game_shared PUBLIC src)
 target_link_libraries(game_shared PUBLIC glm)
 
 add_library(game_net
-    src/net/UdpTransport.cpp
+    src/net/GameNetworkingSocketsTransport.cpp
     src/net/Serialization.cpp
 )
-target_link_libraries(game_net PUBLIC game_shared)
+target_link_libraries(game_net PUBLIC game_shared GameNetworkingSockets::shared)
 target_include_directories(game_net PUBLIC src)
-
-if(WIN32)
-    target_link_libraries(game_net PUBLIC ws2_32)
-endif()
 
 add_executable(game_server
     src/server/main.cpp

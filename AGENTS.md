@@ -10,7 +10,7 @@
 - `DearImGuiContext` owns Dear ImGui lifecycle and raw SDL event forwarding; GUI layers own debug overlay, crosshair, and future 2D GUI.
 - `game_server` is a headless terminal executable and must not link SDL3, OpenGL, windows, or GPU APIs.
 - Simulation is server-authoritative and fixed-tick; do not drive gameplay from render frame delta.
-- Keep networking behind `NetworkTransport`; the first backend is UDP, with SteamNetworkingSockets planned later.
+- Keep networking behind `NetworkTransport`; the active backend is standalone Valve GameNetworkingSockets.
 - Keep `src/shared` independent of SDL/OpenGL and suitable for both client and server.
 - Active development branch is `develop`; use GitHub MCP (`ele-dev/multiplayer-sandbox-game`) for remote pushes.
 - GitHub Actions workflow is manual-only (`workflow_dispatch`) plus auto on push to `main`.
