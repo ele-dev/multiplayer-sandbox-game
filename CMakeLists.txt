@@ -110,6 +110,15 @@ add_executable(game_client
 )
 target_link_libraries(game_client PRIVATE game_shared game_net SDL3::SDL3 OpenGL::GL imgui)
 
+function(target_linux_runtime_paths target_name)
+    if(UNIX AND NOT APPLE)
+        set_target_properties(${target_name} PROPERTIES
+            BUILD_RPATH "$ORIGIN;$ORIGIN/bin"
+            INSTALL_RPATH "$ORIGIN"
+        )
+    endif()
+endfunction()
+
 function(target_strict_warnings target_name)
     if(MSVC)
         target_compile_options(${target_name} PRIVATE /W4 /permissive-)
@@ -122,3 +131,6 @@ target_strict_warnings(game_shared)
 target_strict_warnings(game_net)
 target_strict_warnings(game_server)
 target_strict_warnings(game_client)
+
+target_linux_runtime_paths(game_server)
+target_linux_runtime_paths(game_client)
