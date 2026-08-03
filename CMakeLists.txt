@@ -147,4 +147,3 @@ endif()
 
 install(TARGETS game_client RUNTIME DESTINATION bin COMPONENT client)
 install(TARGETS game_server RUNTIME DESTINATION bin COMPONENT server)
-install(FILES server.cfg DESTINATION bin COMPONENT server)

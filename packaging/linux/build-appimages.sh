@@ -89,13 +89,22 @@ copy_runtime_libraries() {
 write_apprun() {
     local appdir="$1"
     local executable="$2"
+    local working_directory="$3"
 
     cat > "${appdir}/AppRun" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 appdir="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
 export LD_LIBRARY_PATH="\${appdir}/usr/lib:\${LD_LIBRARY_PATH:-}"
+EOF
+
+    if [[ "${working_directory}" == "app-bin" ]]; then
+        cat >> "${appdir}/AppRun" <<EOF
 cd "\${appdir}/usr/bin"
+EOF
+    fi
+
+    cat >> "${appdir}/AppRun" <<EOF
 exec "\${appdir}/usr/bin/${executable}" "\$@"
 EOF
     chmod +x "${appdir}/AppRun"
@@ -160,15 +169,19 @@ build_appimage() {
 download_linuxdeploy
 rm -rf "${client_appdir}" "${server_appdir}"
 rm -f "${output_dir}"/*.AppImage
+rm -f "${output_dir}/server.cfg"
 
 cmake --install "${build_dir}" --prefix "${client_appdir}/usr" --component client
 cmake --install "${build_dir}" --prefix "${server_appdir}/usr" --component server
+rm -f "${server_appdir}/usr/bin/server.cfg"
 
 copy_runtime_libraries "${client_appdir}" yes
 copy_runtime_libraries "${server_appdir}" no
 
-write_apprun "${client_appdir}" game_client
-write_apprun "${server_appdir}" game_server
+write_apprun "${client_appdir}" game_client app-bin
+write_apprun "${server_appdir}" game_server caller
+cp "${repo_root}/server.cfg" "${output_dir}/server.cfg"
+chmod 0644 "${output_dir}/server.cfg"
 
 run_linuxdeploy "${client_appdir}" "${repo_root}/packaging/linux/game_client.desktop" "${repo_root}/packaging/linux/game_client.svg"
 run_linuxdeploy "${server_appdir}" "${repo_root}/packaging/linux/game_server.desktop" "${repo_root}/packaging/linux/game_server.svg"
@@ -178,3 +191,4 @@ build_appimage "${server_appdir}" "${server_name}"
 
 printf '\nCreated AppImages:\n'
 find "${output_dir}" -maxdepth 1 -name '*.AppImage' -type f -printf '%f\n' | sort
+printf '%s\n' 'server.cfg'
