@@ -2,6 +2,16 @@ cmake_minimum_required(VERSION 3.25)
 
 project(multiplayer_game LANGUAGES C CXX)
 
+# Speed up build time: Enable CCache if available
+find_program(CCACHE_PROGRAM ccache)
+if(CCACHE_PROGRAM)
+    set(CMAKE_C_COMPILER_LAUNCHER ${CCACHE_PROGRAM})
+    set(CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE_PROGRAM})
+endif()
+
+# Speed up config time: Don't check Git remotes every re-configure
+set(FETCHCONTENT_UPDATES_DISCONNECTED ON CACHE BOOL "" FORCE)
+
 include(FetchContent)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -13,6 +23,7 @@ if(UNIX AND NOT APPLE)
     set(CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS} -D_GNU_SOURCE")
 endif()
 
+# Fetch third party libraries
 FetchContent_Declare(
     glm
     GIT_REPOSITORY https://github.com/g-truc/glm.git
@@ -41,9 +52,17 @@ FetchContent_Declare(
     GIT_SHALLOW TRUE
 )
 
+# Set env variables
+set(GLM_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLM_BUILD_INSTALL OFF CACHE BOOL "" FORCE)
+
+set(SDL_TEST OFF CACHE BOOL "" FORCE)
+set(SDL_TESTS OFF CACHE BOOL "" FORCE)
+set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
 set(SDL_DIALOG OFF CACHE BOOL "" FORCE)
 set(SDL_TRAY OFF CACHE BOOL "" FORCE)
+
 set(BUILD_STATIC_LIB OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIB ON CACHE BOOL "" FORCE)
 set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -51,16 +70,22 @@ set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(BUILD_TOOLS OFF CACHE BOOL "" FORCE)
 set(ENABLE_ICE OFF CACHE BOOL "" FORCE)
 set(USE_STEAMWEBRTC OFF CACHE BOOL "" FORCE)
+
+# Set platform dependent crypto backends
 if(WIN32)
     set(USE_CRYPTO BCrypt CACHE STRING "" FORCE)
 else()
     set(USE_CRYPTO OpenSSL CACHE STRING "" FORCE)
 endif()
 
-FetchContent_MakeAvailable(glm)
-FetchContent_MakeAvailable(GameNetworkingSockets)
-FetchContent_MakeAvailable(SDL3)
-FetchContent_MakeAvailable(imgui)
+FetchContent_GetProperties(glm)
+if(NOT glm_POPULATED)
+    FetchContent_Populate(glm)
+    add_library(glm INTERFACE)
+    target_include_directories(glm INTERFACE ${glm_SOURCE_DIR})
+endif()
+
+FetchContent_MakeAvailable(GameNetworkingSockets SDL3 imgui)
 
 find_package(OpenGL REQUIRED)
 
@@ -116,6 +141,15 @@ add_executable(game_client
     src/client/ViewportLayer.cpp
 )
 target_link_libraries(game_client PRIVATE game_shared game_net SDL3::SDL3 OpenGL::GL imgui)
+
+target_precompile_headers(game_client PRIVATE
+    <vector>
+    <string>
+    <memory>
+    <glm/glm.hpp>
+    <SDL3/SDL.h>
+    <imgui.h>
+)
 
 function(target_linux_runtime_paths target_name)
     if(UNIX AND NOT APPLE)
