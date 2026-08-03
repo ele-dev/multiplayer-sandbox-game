@@ -1,6 +1,7 @@
 build/
 out/
 dist/
+.cache/
 
 # CMake generated files
 CMakeCache.txt
