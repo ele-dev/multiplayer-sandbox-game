@@ -8,6 +8,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+if(UNIX AND NOT APPLE)
+    add_compile_definitions(_GNU_SOURCE)
+    set(CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS} -D_GNU_SOURCE")
+endif()
+
 FetchContent_Declare(
     glm
     GIT_REPOSITORY https://github.com/g-truc/glm.git
@@ -37,6 +42,8 @@ FetchContent_Declare(
 )
 
 set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
+set(SDL_DIALOG OFF CACHE BOOL "" FORCE)
+set(SDL_TRAY OFF CACHE BOOL "" FORCE)
 set(BUILD_STATIC_LIB OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIB ON CACHE BOOL "" FORCE)
 set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -113,8 +120,8 @@ target_link_libraries(game_client PRIVATE game_shared game_net SDL3::SDL3 OpenGL
 function(target_linux_runtime_paths target_name)
     if(UNIX AND NOT APPLE)
         set_target_properties(${target_name} PROPERTIES
-            BUILD_RPATH "$ORIGIN;$ORIGIN/bin"
-            INSTALL_RPATH "$ORIGIN"
+            BUILD_RPATH "$ORIGIN;$ORIGIN/bin;$ORIGIN/../lib"
+            INSTALL_RPATH "$ORIGIN;$ORIGIN/../lib"
         )
     endif()
 endfunction()
@@ -137,3 +144,7 @@ target_linux_runtime_paths(game_client)
 if(TARGET GameNetworkingSockets)
     target_linux_runtime_paths(GameNetworkingSockets)
 endif()
+
+install(TARGETS game_client RUNTIME DESTINATION bin COMPONENT client)
+install(TARGETS game_server RUNTIME DESTINATION bin COMPONENT server)
+install(FILES server.cfg DESTINATION bin COMPONENT server)

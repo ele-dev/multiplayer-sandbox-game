@@ -22,6 +22,8 @@ jobs:
           sudo apt-get install -y \
             libprotobuf-dev \
             libssl-dev \
+            file \
+            libfuse2 \
             ninja-build \
             pkg-config \
             protobuf-compiler \
@@ -67,23 +69,22 @@ jobs:
           build_jobs=$(( build_jobs > 1 ? build_jobs / 2 : 1 ))
           cmake --build build --parallel "$build_jobs"
 
-      - name: Package binaries
+      - name: Package AppImages
         run: |
-          mkdir -p package/linux
-          cp build/game_client package/linux/
-          cp build/game_server package/linux/
-          cp server.cfg package/linux/
-          find build -name 'libSDL3.so*' -type f -exec cp -P {} package/linux/ \;
-          find build -name 'libGameNetworkingSockets.so*' -type f -exec cp -P {} package/linux/ \;
-          ldd build/bin/libGameNetworkingSockets.so \
-            | awk '/libprotobuf\.so|libcrypto\.so/ { print $3 }' \
-            | xargs -r -I {} cp -L {} package/linux/
+          chmod +x packaging/linux/build-appimages.sh
+          packaging/linux/build-appimages.sh
 
-      - name: Upload artifact
+      - name: Upload client AppImage
         uses: actions/upload-artifact@v4
         with:
-          name: multiplayer-sandbox-game-linux
-          path: package/linux/
+          name: multiplayer-sandbox-game-client-linux-appimage
+          path: package/linux/*client*.AppImage
+
+      - name: Upload server AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: multiplayer-sandbox-game-server-linux-appimage
+          path: package/linux/*server*.AppImage
 
   windows:
     name: Windows Release
