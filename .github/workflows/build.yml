@@ -78,13 +78,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: multiplayer-sandbox-game-client-linux-appimage
-          path: package/linux/*client*.AppImage
+          path: dist/linux/*client*.AppImage
 
       - name: Upload server AppImage
         uses: actions/upload-artifact@v4
         with:
           name: multiplayer-sandbox-game-server-linux-appimage
-          path: package/linux/*server*.AppImage
+          path: dist/linux/*server*.AppImage
 
   windows:
     name: Windows Release

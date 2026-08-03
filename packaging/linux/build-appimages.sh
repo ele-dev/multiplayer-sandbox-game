@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 build_dir="${BUILD_DIR:-build}"
-output_dir="${OUTPUT_DIR:-package/linux}"
+output_dir="${OUTPUT_DIR:-dist/linux}"
 tools_dir="${APPIMAGE_TOOLS_DIR:-${repo_root}/.cache/appimage-tools}"
 arch="${APPIMAGE_ARCH:-x86_64}"
 branch="${APPIMAGE_BRANCH:-${GITHUB_REF_NAME:-}}"
