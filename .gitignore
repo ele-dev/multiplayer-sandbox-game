@@ -30,3 +30,7 @@ docs/*.pdf
 *.swo
 .DS_Store
 Thumbs.db
+
+# legacy files
+*.orig
+*.bak
