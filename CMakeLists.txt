@@ -50,6 +50,7 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/ValveSoftware/GameNetworkingSockets.git
     GIT_TAG v1.6.0
     GIT_SHALLOW TRUE
+    GIT_SUBMODULES ""
 )
 
 # Set env variables
