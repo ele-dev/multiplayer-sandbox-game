@@ -78,14 +78,12 @@ else()
     set(USE_CRYPTO OpenSSL CACHE STRING "" FORCE)
 endif()
 
-FetchContent_GetProperties(glm)
-if(NOT glm_POPULATED)
-    FetchContent_Populate(glm)
-    add_library(glm INTERFACE)
-    target_include_directories(glm INTERFACE ${glm_SOURCE_DIR})
-endif()
-
-FetchContent_MakeAvailable(GameNetworkingSockets SDL3 imgui)
+FetchContent_MakeAvailable(
+    glm
+    GameNetworkingSockets
+    SDL3
+    imgui
+)
 
 find_package(OpenGL REQUIRED)
 
@@ -108,7 +106,7 @@ add_library(game_shared
     src/shared/Simulation.cpp
 )
 target_include_directories(game_shared PUBLIC src)
-target_link_libraries(game_shared PUBLIC glm)
+target_link_libraries(game_shared PUBLIC glm::glm-header-only)
 
 add_library(game_net
     src/net/GameNetworkingSocketsTransport.cpp
