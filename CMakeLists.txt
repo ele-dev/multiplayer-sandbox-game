@@ -23,7 +23,7 @@ if(UNIX AND NOT APPLE)
     set(CMAKE_REQUIRED_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS} -D_GNU_SOURCE")
 endif()
 
-# Fetch third party libraries
+# --- Fetch Third-Party Libraries ---
 FetchContent_Declare(
     glm
     GIT_REPOSITORY https://github.com/g-truc/glm.git
@@ -53,7 +53,7 @@ FetchContent_Declare(
     GIT_SUBMODULES ""
 )
 
-# Set env variables
+# --- Dependency Flags ---
 set(GLM_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLM_BUILD_INSTALL OFF CACHE BOOL "" FORCE)
 
@@ -72,7 +72,6 @@ set(BUILD_TOOLS OFF CACHE BOOL "" FORCE)
 set(ENABLE_ICE OFF CACHE BOOL "" FORCE)
 set(USE_STEAMWEBRTC OFF CACHE BOOL "" FORCE)
 
-# Set platform dependent crypto backends
 if(WIN32)
     set(USE_CRYPTO BCrypt CACHE STRING "" FORCE)
 else()
@@ -88,6 +87,54 @@ FetchContent_MakeAvailable(
 
 find_package(OpenGL REQUIRED)
 
+# ==============================================================================
+#  PRECOMPILED HEADER (PCH) DEFINITIONS
+# ==============================================================================
+
+# 1. Base Core PCH: Standard Library + GLM + GameNetworkingSockets
+# Used by EVERYTHING: game_shared, game_net, game_server, game_client
+add_library(pch_core INTERFACE)
+target_link_libraries(pch_core INTERFACE 
+    glm::glm-header-only 
+    GameNetworkingSockets::shared
+)
+target_precompile_headers(pch_core INTERFACE
+    <iostream>
+    <vector>
+    <unordered_map>
+    <string>
+    <memory>
+    <mutex>
+    <optional>
+    <atomic>
+    <cstdint>
+    <cstring>
+    <cstddef>
+    <chrono>
+    <thread>
+    <glm/glm.hpp>
+    <glm/gtc/matrix_transform.hpp>
+    <glm/gtc/type_ptr.hpp>
+    <steam/steamnetworkingsockets.h>
+)
+
+# 2. Client / GUI PCH: Extends Core PCH with SDL3, OpenGL, and ImGui
+# Used by: imgui target and game_client
+add_library(pch_gui INTERFACE)
+target_link_libraries(pch_gui INTERFACE 
+    pch_core 
+    SDL3::SDL3 
+    OpenGL::GL
+)
+target_precompile_headers(pch_gui INTERFACE
+    <SDL3/SDL.h>
+)
+
+# ==============================================================================
+#  TARGET DEFINITIONS
+# ==============================================================================
+
+# ImGui Static Library (Uses GUI PCH for faster backend/widget compilation)
 add_library(imgui STATIC
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_draw.cpp
@@ -100,28 +147,32 @@ target_include_directories(imgui PUBLIC
     ${imgui_SOURCE_DIR}
     ${imgui_SOURCE_DIR}/backends
 )
-target_link_libraries(imgui PUBLIC SDL3::SDL3 OpenGL::GL)
+target_link_libraries(imgui PUBLIC pch_gui)
 
+# Game Shared (Inherits pch_core)
 add_library(game_shared
     src/shared/Config.cpp
     src/shared/Simulation.cpp
 )
 target_include_directories(game_shared PUBLIC src)
-target_link_libraries(game_shared PUBLIC glm::glm-header-only)
+target_link_libraries(game_shared PUBLIC pch_core)
 
+# Game Net (Inherits pch_core via game_shared)
 add_library(game_net
     src/net/GameNetworkingSocketsTransport.cpp
     src/net/Serialization.cpp
 )
 target_include_directories(game_net PUBLIC src)
-target_link_libraries(game_net PUBLIC game_shared GameNetworkingSockets::shared)
+target_link_libraries(game_net PUBLIC game_shared)
 
+# Game Server (Inherits pch_core via game_shared/game_net)
 add_executable(game_server
     src/server/main.cpp
     src/server/ServerApplication.cpp
 )
 target_link_libraries(game_server PRIVATE game_shared game_net)
 
+# Game Client (Inherits pch_gui and pch_core)
 add_executable(game_client
     src/client/main.cpp
     src/client/ClientApplication.cpp
@@ -139,24 +190,11 @@ add_executable(game_client
     src/client/PauseMenuLayer.cpp
     src/client/ViewportLayer.cpp
 )
-target_link_libraries(game_client PRIVATE game_shared game_net SDL3::SDL3 OpenGL::GL imgui)
+target_link_libraries(game_client PRIVATE game_shared game_net imgui)
 
-target_precompile_headers(game_client PRIVATE
-    <iostream>
-    <vector>
-    <unordered_map>
-    <string>
-    <memory>
-    <mutex>
-    <optional>
-    <atomic>
-    <cstdint>
-    <cstring>
-    <cstddef>
-    <glm/glm.hpp>
-    <SDL3/SDL.h>
-    <imgui.h>
-)
+# ==============================================================================
+#  HELPER FUNCTIONS & PROPERTIES
+# ==============================================================================
 
 function(target_linux_runtime_paths target_name)
     if(UNIX AND NOT APPLE)
