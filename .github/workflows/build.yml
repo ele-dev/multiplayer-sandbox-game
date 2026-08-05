@@ -94,8 +94,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Install dependencies
-        run: vcpkg install protobuf:x64-windows
+      - name: Install precompiled build and runtime dependencies
+        run: |
+          choco install protobuf -y
 
       - name: Configure
         shell: pwsh
@@ -105,8 +106,7 @@ jobs:
           -A x64
           -T v143
           -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL
-          -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
-          -DVCPKG_TARGET_TRIPLET=x64-windows
+          -DCMAKE_PREFIX_PATH="C:\ProgramData\chocolatey\lib\protobuf"
 
       - name: Build
         shell: pwsh
