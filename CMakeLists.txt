@@ -113,8 +113,8 @@ add_library(game_net
     src/net/GameNetworkingSocketsTransport.cpp
     src/net/Serialization.cpp
 )
-target_link_libraries(game_net PUBLIC game_shared GameNetworkingSockets::shared)
 target_include_directories(game_net PUBLIC src)
+target_link_libraries(game_net PUBLIC game_shared GameNetworkingSockets::shared)
 
 add_executable(game_server
     src/server/main.cpp
@@ -142,9 +142,17 @@ add_executable(game_client
 target_link_libraries(game_client PRIVATE game_shared game_net SDL3::SDL3 OpenGL::GL imgui)
 
 target_precompile_headers(game_client PRIVATE
+    <iostream>
     <vector>
+    <unordered_map>
     <string>
     <memory>
+    <mutex>
+    <optional>
+    <atomic>
+    <cstdint>
+    <cstring>
+    <cstddef>
     <glm/glm.hpp>
     <SDL3/SDL.h>
     <imgui.h>
