@@ -8,16 +8,14 @@ Linux Release build, matching the CI workflow:
 
 ```bash
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-BUILD_JOBS=$(nproc); BUILD_JOBS=$(( BUILD_JOBS > 1 ? BUILD_JOBS / 2 : 1 ))
-cmake --build build --parallel "$BUILD_JOBS"
+cmake --build build --parallel
 ```
 
 Windows Release build with Visual Studio 2022 MSVC v143, matching the CI workflow:
 
 ```powershell
 cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T v143 -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL
-$buildJobs = [Math]::Max(1, [Math]::Floor([Environment]::ProcessorCount / 2))
-cmake --build build --config Release --parallel $buildJobs
+cmake --build build --config Release --parallel
 ```
 
 ## Run
