@@ -1,8 +1,8 @@
 # AGENTS.md
 
 - Use CMake as the build source of truth:
-  - Linux: `cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release`, then `BUILD_JOBS=$(nproc); BUILD_JOBS=$(( BUILD_JOBS > 1 ? BUILD_JOBS / 2 : 1 )); cmake --build build --parallel "$BUILD_JOBS"`.
-  - Windows: `cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T v143 -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL`, then `$buildJobs = [Math]::Max(1, [Math]::Floor([Environment]::ProcessorCount / 2)); cmake --build build --config Release --parallel $buildJobs`.
+  - Linux: `cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release`, then `cmake --build build --parallel`.
+  - Windows: `cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T v143 -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL`, then `cmake --build build --config Release --parallel`.
 - SDL3 is fetched by CMake with `FetchContent`; do not vendor SDL manually.
 - Dear ImGui is fetched by CMake with `FetchContent` and must stay client-only.
 - The project targets desktop PC only; do not add mobile or web scaffolding.

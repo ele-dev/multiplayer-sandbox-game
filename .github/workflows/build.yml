@@ -65,9 +65,7 @@ jobs:
 
       - name: Build
         run: |
-          build_jobs=$(nproc)
-          build_jobs=$(( build_jobs > 1 ? build_jobs / 2 : 1 ))
-          cmake --build build --parallel "$build_jobs"
+          cmake --build build --parallel
 
       - name: Package AppImages
         run: |
@@ -113,8 +111,7 @@ jobs:
       - name: Build
         shell: pwsh
         run: |
-          $buildJobs = [Math]::Max(1, [Math]::Floor([Environment]::ProcessorCount / 2))
-          cmake --build build --config Release --parallel $buildJobs
+          cmake --build build --config Release --parallel
 
       - name: Package binaries
         shell: pwsh
