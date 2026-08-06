@@ -140,7 +140,7 @@ jobs:
           Get-ChildItem -Path "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/bin" -Filter *.dll | ForEach-Object { Copy-Item $_.FullName package/windows/ }
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v6
         with:
           name: multiplayer-sandbox-game-windows
           path: package/windows/
