@@ -81,13 +81,13 @@ jobs:
           packaging/linux/build-appimages.sh
 
       - name: Upload client AppImage
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v6
         with:
           name: multiplayer-sandbox-game-client-linux-appimage
           path: dist/linux/*client*.AppImage
 
       - name: Upload server AppImage
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v6
         with:
           name: multiplayer-sandbox-game-server-linux-appimage
           path: |
