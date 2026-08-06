@@ -52,12 +52,6 @@ jobs:
             libxtst-dev \
             wayland-protocols
 
-      - name: Install GCC toolchain
-        uses: egor-tensin/setup-gcc@v2
-        with:
-          version: 13
-          platform: x64     
-
       - name: Install latest CMake + Ninja
         uses: lukka/get-cmake@latest
 
