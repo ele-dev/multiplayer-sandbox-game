@@ -58,12 +58,10 @@ jobs:
           version: 13
           platform: x64     
 
-      - name: Install CMake
-        run: |
-          python3 -m pip install --user "cmake>=3.25,<4"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Install latest CMake + Ninja
+        uses: lukka/get-cmake@latest
 
-      - name: Check build tool versions
+      - name: Check tooling version
         run: |
           gcc --version
           g++ --version
@@ -104,8 +102,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Install latest CMake + Ninja
+        uses: lukka/get-cmake@latest
+
       - name: Install build and runtime dependencies
         run: vcpkg install protobuf:x64-windows
+
+      - name: Check tooling version
+        run: |
+          cmake --version
+          ninja --version
+          vcpkg --version
 
       - name: Configure
         shell: pwsh
