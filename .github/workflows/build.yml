@@ -67,6 +67,7 @@ jobs:
           g++ --version
           cmake --version
           ninja --version
+          protoc --version
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -105,7 +106,15 @@ jobs:
       - name: Install latest CMake + Ninja
         uses: lukka/get-cmake@latest
 
+      - name: Cache vcpkg dependencies
+        id: cache-vcpkg
+        uses: actions/cache@v5
+        with:
+          path: C:\vcpkg\installed
+          key: ${{ runner.os }}-vcpkg-protobuf-v1
+
       - name: Install build and runtime dependencies
+        if: steps.cache-vcpkg.outputs.cache-hit != 'true'
         run: vcpkg install protobuf:x64-windows
 
       - name: Check tooling version
@@ -113,6 +122,7 @@ jobs:
           cmake --version
           ninja --version
           vcpkg --version
+          protoc --version
 
       - name: Configure
         shell: pwsh
