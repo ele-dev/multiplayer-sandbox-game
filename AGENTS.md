@@ -15,7 +15,7 @@
 - Active development branch is `develop`; use GitHub MCP (`ele-dev/multiplayer-sandbox-game`) for remote pushes.
 - Planning source of truth is the GitHub Project `MultiplayerGameDev` under user `ele-dev`, project number `10`; use `gh project` with the `Status` field (`Backlog`, `Ready`, `In Progress`, `In Review`, `Done`) when fetching or updating planned work.
 - GitHub Actions workflow is manual-only (`workflow_dispatch`) plus auto on push to `main`.
-- Linux CI runs on `ubuntu-22.04` (for glibc compatibility); CMake installed via pip (`cmake>=3.25,<4`).
+- Linux CI runs on `ubuntu-22.04` (for glibc compatibility).
 - Windows CI uses explicit MSVC v143 toolset with dynamic runtime (`MultiThreadedDLL`).
 - Vertical look input is inverted at the client input layer (mouse `yrel` negated, arrow keys swapped).
 - Use GLM (OpenGL Mathematics) for all vector, matrix, and math implementations across the entire codebase; avoid custom math types and functions.
