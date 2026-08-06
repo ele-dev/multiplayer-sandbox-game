@@ -122,7 +122,6 @@ jobs:
           cmake --version
           ninja --version
           vcpkg --version
-          protoc --version
 
       - name: Configure
         shell: pwsh
