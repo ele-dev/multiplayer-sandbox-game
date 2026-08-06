@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Install dependencies
         run: |
@@ -83,13 +83,13 @@ jobs:
           packaging/linux/build-appimages.sh
 
       - name: Upload client AppImage
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: multiplayer-sandbox-game-client-linux-appimage
           path: dist/linux/*client*.AppImage
 
       - name: Upload server AppImage
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: multiplayer-sandbox-game-server-linux-appimage
           path: |
@@ -102,7 +102,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Install build and runtime dependencies
         run: vcpkg install protobuf:x64-windows
@@ -133,7 +133,7 @@ jobs:
           Get-ChildItem -Path "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/bin" -Filter *.dll | ForEach-Object { Copy-Item $_.FullName package/windows/ }
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: multiplayer-sandbox-game-windows
           path: package/windows/
