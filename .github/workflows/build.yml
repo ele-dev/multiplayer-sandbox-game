@@ -100,16 +100,23 @@ jobs:
       - name: Install latest CMake + Ninja
         uses: lukka/get-cmake@latest
 
-      - name: Cache vcpkg dependencies
-        id: cache-vcpkg
+      - name: Cache vcpkg binary dependencies
         uses: actions/cache@v5
         with:
-          path: C:\vcpkg\installed
-          key: ${{ runner.os }}-vcpkg-protobuf-v1
+          path: |
+            ${{ github.workspace }}/vcpkg-binary-cache
+            C:\vcpkg\downloads
+          key: ${{ runner.os }}-vcpkg-binary-protobuf-x64-windows-v2-${{ hashFiles('.github/workflows/build.yml', 'CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-vcpkg-binary-protobuf-x64-windows-v2-
 
       - name: Install build and runtime dependencies
-        if: steps.cache-vcpkg.outputs.cache-hit != 'true'
-        run: vcpkg install protobuf:x64-windows
+        shell: pwsh
+        env:
+          VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/vcpkg-binary-cache,readwrite
+        run: |
+          New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/vcpkg-binary-cache" | Out-Null
+          vcpkg install protobuf:x64-windows
 
       - name: Check tooling version
         run: |
@@ -124,6 +131,7 @@ jobs:
           -G "Visual Studio 17 2022"
           -A x64
           -T v143
+          -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL
           -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
           -DVCPKG_TARGET_TRIPLET=x64-windows
 
