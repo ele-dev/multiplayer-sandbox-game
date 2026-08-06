@@ -52,13 +52,23 @@ jobs:
             libxtst-dev \
             wayland-protocols
 
+      - name: Install GCC toolchain
+        uses: egor-tensin/setup-gcc@v2
+        with:
+          version: 13
+          platform: x64     
+
       - name: Install CMake
         run: |
           python3 -m pip install --user "cmake>=3.25,<4"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: Check CMake version
-        run: cmake --version
+      - name: Check build tool versions
+        run: |
+          gcc --version
+          g++ --version
+          cmake --version
+          ninja --version
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
