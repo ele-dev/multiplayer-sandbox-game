@@ -12,9 +12,9 @@
 - Simulation is server-authoritative and fixed-tick; do not drive gameplay from render frame delta.
 - Keep networking behind `NetworkTransport`; the active backend is standalone Valve GameNetworkingSockets.
 - Keep `src/shared` independent of SDL/OpenGL and suitable for both client and server.
-- Active development branch is `develop`; use GitHub MCP (`ele-dev/multiplayer-sandbox-game`) for remote pushes.
+- Active development branch is `develop`; base all future implementation tasks on the latest `develop` commit unless explicitly specified otherwise. Use GitHub MCP (`ele-dev/multiplayer-sandbox-game`) for remote pushes.
 - Planning source of truth is the GitHub Project `MultiplayerGameDev` under user `ele-dev`, project number `10`; use `gh project` with the `Status` field (`Backlog`, `Ready`, `In Progress`, `In Review`, `Done`) when fetching or updating planned work.
-- GitHub Actions workflow is manual-only (`workflow_dispatch`) plus auto on push to `main`.
+- GitHub Actions workflow is manual (`workflow_dispatch`) plus auto on push to `main` and `develop`.
 - Linux CI runs on `ubuntu-22.04` (for glibc compatibility).
 - Windows CI uses explicit MSVC v143 toolset with dynamic runtime (`MultiThreadedDLL`).
 - Vertical look input is inverted at the client input layer (mouse `yrel` negated, arrow keys swapped).
