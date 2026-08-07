@@ -1,7 +1,7 @@
 #pragma once
 
-#include "client/GuiLayer.hpp"
 #include "client/Layer.hpp"
+#include "client/RenderDebugState.hpp"
 
 namespace game {
 

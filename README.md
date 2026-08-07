@@ -1,46 +1,24 @@
-# Multiplayer Game
+# Multiplayer Sandbox Game
 
-C++20 desktop multiplayer game prototype with a headless authoritative server and an SDL3/OpenGL/Dear ImGui client.
+C++20 desktop multiplayer sandbox game prototype with a headless authoritative server and an SDL3/OpenGL/Dear ImGui client.
 
-## Build
+## Project Status
 
-Linux Release build, matching the CI workflow:
+| Target | Last `main` Build |
+| --- | --- |
+| Linux | [![Linux build status](https://img.shields.io/github/check-runs/ele-dev/multiplayer-sandbox-game/main?nameFilter=Linux%20Release&label=Linux)](https://github.com/ele-dev/multiplayer-sandbox-game/actions/workflows/build.yml?query=branch%3Amain) |
+| Windows | [![Windows build status](https://img.shields.io/github/check-runs/ele-dev/multiplayer-sandbox-game/main?nameFilter=Windows%20Release&label=Windows)](https://github.com/ele-dev/multiplayer-sandbox-game/actions/workflows/build.yml?query=branch%3Amain) |
 
-```bash
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-BUILD_JOBS=$(nproc); BUILD_JOBS=$(( BUILD_JOBS > 1 ? BUILD_JOBS / 2 : 1 ))
-cmake --build build --parallel "$BUILD_JOBS"
-```
+Badges track the latest OS-specific workflow check runs on `main`.
 
-Windows Release build with Visual Studio 2022 MSVC v143, matching the CI workflow:
+## Overview
 
-```powershell
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T v143 -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL
-$buildJobs = [Math]::Max(1, [Math]::Floor([Environment]::ProcessorCount / 2))
-cmake --build build --config Release --parallel $buildJobs
-```
+The project explores a small server-authoritative multiplayer game architecture for desktop PC. The server runs the simulation as a headless terminal executable, while the client owns presentation, input, rendering, and debug UI.
 
-## Run
+Current prototype capabilities include local client/server networking through GameNetworkingSockets, fixed-tick authoritative movement, SDL3/OpenGL rendering, Dear ImGui overlays, and packaged Linux and Windows release artifacts from CI.
 
-Start the server first:
+## Documentation
 
-```bash
-./build/game_server
-```
-
-Then start the client in another terminal:
-
-```bash
-./build/game_client
-```
-
-Windows Release paths:
-
-```powershell
-./build/Release/game_server.exe
-./build/Release/game_client.exe
-```
-
-The prototype uses UDP on `127.0.0.1:27015`. The client opens an SDL3/OpenGL window and sends WASD/mouse-look input to the server. The server runs the authoritative fixed-tick simulation and sends snapshots back.
-
-The client renders a debug floor grid, Dear ImGui crosshair, and upper-right Dear ImGui overlay with connection, tick, position, yaw/pitch, and snapshot information. Use WASD to move and mouse-look or arrow keys to rotate the camera. Press Escape to quit; the client sends a disconnect packet, and the server also times clients out after several seconds without packets.
+- [Building](BUILDING.md): local build, run, dependency, and packaging instructions.
+- [Contributing](CONTRIBUTING.md): planning, branching, pull request, and coding guidelines.
+- [Codebase report](docs/codebase-report.md): deeper implementation notes and architecture references.

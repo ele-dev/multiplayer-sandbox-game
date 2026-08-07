@@ -13,6 +13,7 @@ public:
 
     PauseMenuLayer(ResumeCallback onResume, ReturnToStartCallback onReturnToStart);
 
+    void onEvent(Event& event) override;
     void onRender() override;
 
 private:

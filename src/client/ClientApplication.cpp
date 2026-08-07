@@ -1,5 +1,4 @@
 #include "client/ClientApplication.hpp"
-#include "client/ConnectLayer.hpp"
 #include "client/DebugOverlayLayer.hpp"
 #include "client/HudLayer.hpp"
 #include "client/MainMenuLayer.hpp"
@@ -10,13 +9,22 @@
 
 #include <SDL3/SDL_error.h>
 #include <SDL3/SDL_init.h>
-#include <SDL3/SDL_keyboard.h>
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_timer.h>
 
+#include <algorithm>
+#include <chrono>
+#include <cmath>
 #include <iostream>
 
 namespace game {
+
+namespace {
+
+constexpr float frameTimeSmoothingAlpha = 0.08f;
+constexpr float maxDisplayedFrameTimeMs = 250.0f;
+
+} // namespace
 
 ClientApplication::~ClientApplication() {
     shutdown();
@@ -27,26 +35,26 @@ int ClientApplication::run() {
         return 1;
     }
 
-    layerStack_.pushLayer(std::make_unique<MainMenuLayer>(
-        [this]() { requestPlay(); },
+    layerStack_.requestPushLayer(std::make_unique<MainMenuLayer>(
+        [this](const std::string& ip) { requestConnect(ip); },
         [this]() { running_ = false; }
     ));
+    layerStack_.applyPendingChanges();
 
     while (running_) {
-        input_.beginFrame();
-        processEvents();
+        updateFrameTiming();
 
-        if (input_.quitRequested()) {
-            running_ = false;
-            break;
-        }
+        processEvents();
+        layerStack_.applyPendingChanges();
 
         renderer_.clear();
         layerStack_.onUpdate();
+        layerStack_.applyPendingChanges();
 
-        guiLayer_.beginFrame();
+        dearImGuiContext_.beginFrame();
         layerStack_.onRender();
-        guiLayer_.endFrame();
+        dearImGuiContext_.endFrame();
+        layerStack_.applyPendingChanges();
 
         updateRelativeMouse();
 
@@ -84,7 +92,7 @@ bool ClientApplication::initialize() {
     SDL_GL_SetSwapInterval(1);
     renderer_.setViewport(1280, 720);
 
-    if (!guiLayer_.initialize(window_, glContext_)) {
+    if (!dearImGuiContext_.initialize(window_, glContext_)) {
         std::cerr << "Failed to initialize Dear ImGui\n";
         return false;
     }
@@ -98,7 +106,7 @@ void ClientApplication::shutdown() {
         transport_.close();
         transportOpen_ = false;
     }
-    guiLayer_.shutdown();
+    dearImGuiContext_.shutdown();
     renderer_.shutdown();
     if (glContext_ != nullptr) {
         SDL_GL_DestroyContext(glContext_);
@@ -111,65 +119,57 @@ void ClientApplication::shutdown() {
     SDL_Quit();
 }
 
-Event ClientApplication::convertEvent(const SDL_Event& sdlEvent) const {
-    Event event{};
-
-    switch (sdlEvent.type) {
-    case SDL_EVENT_QUIT:
-        event.type = EventType::Quit;
-        break;
-    case SDL_EVENT_KEY_DOWN:
-        event.type = EventType::KeyDown;
-        event.key.scancode = sdlEvent.key.scancode;
-        break;
-    case SDL_EVENT_KEY_UP:
-        event.type = EventType::KeyUp;
-        event.key.scancode = sdlEvent.key.scancode;
-        break;
-    case SDL_EVENT_MOUSE_MOTION:
-        event.type = EventType::MouseMove;
-        event.mouseMove.xrel = sdlEvent.motion.xrel;
-        event.mouseMove.yrel = sdlEvent.motion.yrel;
-        break;
-    case SDL_EVENT_MOUSE_BUTTON_DOWN:
-        event.type = EventType::MouseButtonDown;
-        event.mouseButton.button = sdlEvent.button.button;
-        event.mouseButton.x = sdlEvent.button.x;
-        event.mouseButton.y = sdlEvent.button.y;
-        break;
-    case SDL_EVENT_MOUSE_BUTTON_UP:
-        event.type = EventType::MouseButtonUp;
-        event.mouseButton.button = sdlEvent.button.button;
-        event.mouseButton.x = sdlEvent.button.x;
-        event.mouseButton.y = sdlEvent.button.y;
-        break;
-    case SDL_EVENT_WINDOW_RESIZED:
-        event.type = EventType::WindowResized;
-        event.windowResize.width = sdlEvent.window.data1;
-        event.windowResize.height = sdlEvent.window.data2;
-        break;
-    default:
-        break;
+void ClientApplication::updateFrameTiming() {
+    const auto now = std::chrono::steady_clock::now();
+    if (!hasFrameTime_) {
+        lastFrameTime_ = now;
+        hasFrameTime_ = true;
+        return;
     }
 
-    return event;
+    const std::chrono::duration<float, std::milli> elapsed = now - lastFrameTime_;
+    lastFrameTime_ = now;
+
+    if (elapsed.count() <= 0.0f || !std::isfinite(elapsed.count())) {
+        return;
+    }
+
+    const float frameTimeMs = std::min(elapsed.count(), maxDisplayedFrameTimeMs);
+    if (smoothedFrameTimeMs_ <= 0.0f) {
+        smoothedFrameTimeMs_ = frameTimeMs;
+    } else {
+        smoothedFrameTimeMs_ += frameTimeSmoothingAlpha * (frameTimeMs - smoothedFrameTimeMs_);
+    }
+
+    debugState_.frameTimeMs = smoothedFrameTimeMs_;
+    debugState_.framesPerSecond = smoothedFrameTimeMs_ > 0.0f ? 1000.0f / smoothedFrameTimeMs_ : 0.0f;
 }
 
 void ClientApplication::processEvents() {
     SDL_Event sdlEvent;
     while (SDL_PollEvent(&sdlEvent)) {
-        guiLayer_.processEvent(sdlEvent);
+        dearImGuiContext_.processEvent(sdlEvent);
 
-        Event event = convertEvent(sdlEvent);
-
-        if (event.type == EventType::WindowResized) {
-            renderer_.setViewport(event.windowResize.width, event.windowResize.height);
-            layerStack_.resize(event.windowResize.width, event.windowResize.height);
+        auto event = convertSdlEvent(sdlEvent);
+        if (!event) {
+            continue;
         }
 
-        layerStack_.onEvent(event);
+        if (event->type == EventType::Quit) {
+            running_ = false;
+            continue;
+        }
 
-        input_.handleEvent(sdlEvent);
+        if (event->type == EventType::WindowResized) {
+            renderer_.setViewport(event->windowResize.width, event->windowResize.height);
+            layerStack_.resize(event->windowResize.width, event->windowResize.height);
+            continue;
+        }
+
+        // Handle additional application-wide events here
+        // ...
+
+        layerStack_.onEvent(*event);
     }
 }
 
@@ -178,35 +178,22 @@ void ClientApplication::updateRelativeMouse() {
     SDL_SetWindowRelativeMouseMode(window_, wanted);
 }
 
-void ClientApplication::requestPlay() {
-    while (!layerStack_.empty()) {
-        layerStack_.popLayer();
-    }
-    layerStack_.pushLayer(std::make_unique<ConnectLayer>(
-        [this](const std::string& ip) { requestConnect(ip); },
-        [this]() { requestReturnToStart(); }
-    ));
-}
-
 void ClientApplication::requestConnect(const std::string& ip) {
     serverEndpoint_ = {ip, defaultServerPort};
-    if (!transport_.open(0)) {
-        std::cerr << "Failed to open client UDP socket\n";
+    if (!transport_.connect(serverEndpoint_)) {
+        std::cerr << "Failed to connect to server\n";
         return;
     }
     transportOpen_ = true;
 
-    transport_.sendTo(serverEndpoint_, serializeClientHello(1));
+    transport_.send(serializeClientHello(1), NetworkSendMode::Reliable);
     std::cout << "game_client sending to " << serverEndpoint_.host << ':' << serverEndpoint_.port << '\n';
 
     isPaused_ = false;
 
-    while (!layerStack_.empty()) {
-        layerStack_.popLayer();
-    }
+    layerStack_.requestClear();
 
-    layerStack_.pushLayer(std::make_unique<ViewportLayer>(
-        input_,
+    layerStack_.requestPushLayer(std::make_unique<ViewportLayer>(
         camera_,
         debugState_,
         renderer_,
@@ -217,36 +204,33 @@ void ClientApplication::requestConnect(const std::string& ip) {
         [this]() { requestReturnToStart(); }
     ));
 
-    layerStack_.pushOverlay(std::make_unique<HudLayer>(isPaused_));
-    layerStack_.pushOverlay(std::make_unique<DebugOverlayLayer>(debugState_));
+    layerStack_.requestPushOverlay(std::make_unique<HudLayer>(isPaused_));
+    layerStack_.requestPushOverlay(std::make_unique<DebugOverlayLayer>(debugState_));
 }
 
 void ClientApplication::onPauseToggled(bool paused) {
     isPaused_ = paused;
     if (paused) {
-        layerStack_.pushOverlay(std::make_unique<PauseMenuLayer>(
+        layerStack_.requestPushOverlay(std::make_unique<PauseMenuLayer>(
             [this]() { onPauseToggled(false); },
             [this]() { requestReturnToStart(); }
         ));
     } else {
-        layerStack_.popLayer();
+        layerStack_.requestPopLayer();
     }
 }
 
 void ClientApplication::requestReturnToStart() {
     if (transportOpen_) {
-        transport_.close();
         transportOpen_ = false;
     }
     debugState_ = {};
     isPaused_ = false;
 
-    while (!layerStack_.empty()) {
-        layerStack_.popLayer();
-    }
+    layerStack_.requestClear();
 
-    layerStack_.pushLayer(std::make_unique<MainMenuLayer>(
-        [this]() { requestPlay(); },
+    layerStack_.requestPushLayer(std::make_unique<MainMenuLayer>(
+        [this](const std::string& ip) { requestConnect(ip); },
         [this]() { running_ = false; }
     ));
 }

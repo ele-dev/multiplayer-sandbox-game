@@ -4,10 +4,10 @@
 
 This is a C++20 desktop multiplayer game prototype with two executables:
 
-- `game_server`: headless authoritative UDP server.
+- `game_server`: headless authoritative server using GameNetworkingSockets.
 - `game_client`: SDL3/OpenGL client with input, rendering, and snapshot display.
 
-The project is built with CMake. SDL3 is fetched through `FetchContent`; OpenGL is linked only into the client.
+The project is built with CMake. SDL3, Dear ImGui, GLM, and GameNetworkingSockets are fetched through `FetchContent`; OpenGL is linked only into the client.
 
 ## Build Targets
 
@@ -24,14 +24,12 @@ Used by both `game_client` and `game_server`.
 
 ### `game_net`
 
-Contains UDP networking and packet serialization:
+Contains GameNetworkingSockets transport code and packet serialization:
 
-- `src/net/UdpTransport.cpp`
+- `src/net/GameNetworkingSocketsTransport.cpp`
 - `src/net/Serialization.cpp`
 
-Depends on `game_shared`.
-
-On Windows, links `ws2_32`.
+Depends on `game_shared` and `GameNetworkingSockets::shared`.
 
 ### `game_server`
 
@@ -53,10 +51,17 @@ Graphical game client executable:
 
 - `src/client/main.cpp`
 - `src/client/ClientApplication.cpp`
-- `src/client/Input.cpp`
 - `src/client/Camera.cpp`
-- `src/client/GuiLayer.cpp`
+- `src/client/DearImGuiContext.cpp`
+- `src/client/Event.cpp`
+- `src/client/graphics/DebugLineRenderer.cpp`
+- `src/client/graphics/OpenGLFunctions.cpp`
+- `src/client/graphics/ShaderProgram.cpp`
+- `src/client/graphics/SolidMeshRenderer.cpp`
+- `src/client/LayerStack.cpp`
+- `src/client/MainMenuLayer.cpp`
 - `src/client/OpenGLRenderer.cpp`
+- `src/client/ViewportLayer.cpp`
 
 Depends on:
 
@@ -68,67 +73,22 @@ Depends on:
 
 ## Runtime Flow
 
-1. `game_server` opens a UDP socket on port `27015`.
+1. `game_server` listens with GameNetworkingSockets on port `27015`.
 2. `game_client` opens an SDL3 window and OpenGL context.
-3. Client sends `ClientHello` to `127.0.0.1:27015`.
+3. Client connects to `127.0.0.1:27015` and sends reliable `ClientHello`.
 4. Server records the client endpoint and sends `ServerWelcome`.
-5. Client continuously sends `ClientInput` packets.
+5. Client continuously sends unreliable `ClientInput` packets.
 6. Server applies the latest input to authoritative `Simulation`.
 7. Server ticks at fixed `60 Hz`.
-8. Server sends `ServerSnapshot` packets.
+8. Server sends unreliable `ServerSnapshot` packets.
 9. Client updates camera/debug state from the latest snapshot.
-10. Client renders the grid through `OpenGLRenderer`, then renders the crosshair and debug overlay through Dear ImGui.
-11. On client shutdown, client sends `Disconnect`.
+10. Client renders the solid test cube and debug grid through `OpenGLRenderer`, then renders the crosshair and debug overlay through Dear ImGui.
+11. On client shutdown, client sends reliable `Disconnect`.
 12. Server clears the connected client on explicit disconnect or timeout.
 
 ## Shared Module
 
-### `src/shared/Math.hpp`
-
-Contains minimal math primitives and helpers.
-
-#### `struct Vec2`
-
-Two-dimensional float vector.
-
-Members:
-
-- `float x`
-- `float y`
-
-Used for movement input axes and look delta input.
-
-#### `struct Vec3`
-
-Three-dimensional float vector.
-
-Members:
-
-- `float x`
-- `float y`
-- `float z`
-
-Used for player position and renderer camera calculations.
-
-#### `operator+(Vec3 left, Vec3 right)`
-
-Adds two `Vec3` values component-wise.
-
-#### `operator*(Vec3 value, float scalar)`
-
-Scales a `Vec3` by a float.
-
-#### `length(Vec2 value)`
-
-Returns Euclidean length of a `Vec2`.
-
-#### `normalize(Vec2 value)`
-
-Returns a normalized `Vec2`. If length is near zero, returns `{}` to avoid division by zero.
-
-#### `clamp(float value, float minValue, float maxValue)`
-
-Restricts a float to a min/max range. Used to clamp camera pitch.
+Shared code uses GLM vector and math types directly instead of project-local math primitives.
 
 ### `src/shared/PlayerState.hpp`
 
@@ -139,7 +99,7 @@ Defines authoritative player state shared by server and client.
 Members:
 
 - `std::uint32_t playerId`
-- `Vec3 position`
+- `glm::vec3 position`
 - `float yawRadians`
 - `float pitchRadians`
 
@@ -155,7 +115,7 @@ Current protocol version. Value: `1`.
 
 #### `defaultServerPort`
 
-Default UDP server port. Value: `27015`.
+Default server port. Value: `27015`.
 
 #### `enum class PacketType`
 
@@ -175,8 +135,8 @@ Members:
 
 - `sequence`: client-side packet/input sequence number.
 - `clientTick`: monotonically increasing client tick counter.
-- `movement`: `Vec2` movement axis from WASD.
-- `lookDelta`: `Vec2` camera look delta from mouse or arrow keys.
+- `movement`: `glm::vec2` movement axis from WASD.
+- `lookDelta`: `glm::vec2` camera look delta from mouse or arrow keys.
 
 #### `struct ServerSnapshot`
 
@@ -245,7 +205,7 @@ Returns current simulation tick count.
 
 ### `src/net/NetworkTransport.hpp`
 
-Defines the abstract transport boundary. This is the seam where future SteamNetworkingSockets support can replace UDP.
+Defines the abstract transport boundary over a connected GameNetworkingSockets session.
 
 #### `struct NetworkEndpoint`
 
@@ -256,7 +216,7 @@ Members:
 - `std::string host`
 - `std::uint16_t port`
 
-Currently assumes IPv4-style host strings.
+Currently used for IP host strings and ports.
 
 #### `struct NetworkPacket`
 
@@ -271,70 +231,65 @@ Members:
 
 Abstract interface for packet transport.
 
-##### `virtual bool open(std::uint16_t localPort)`
+##### `virtual bool listen(std::uint16_t port)`
 
-Opens a local endpoint. Server uses `27015`; client uses `0` for an ephemeral local port.
+Listens for an incoming connection. Server uses `27015`.
+
+##### `virtual bool connect(const NetworkEndpoint& endpoint)`
+
+Connects to a listening server endpoint.
 
 ##### `virtual void close()`
 
 Closes the transport.
 
-##### `virtual bool sendTo(const NetworkEndpoint& endpoint, const std::vector<std::uint8_t>& bytes)`
+##### `virtual bool send(const std::vector<std::uint8_t>& bytes, NetworkSendMode mode)`
 
-Sends raw bytes to a remote endpoint.
+Sends raw bytes over the active connection with reliable or unreliable delivery.
 
 ##### `virtual std::optional<NetworkPacket> receive()`
 
 Receives one packet if available. Returns `std::nullopt` when no packet is available.
 
-### `src/net/UdpTransport.hpp/.cpp`
+### `src/net/GameNetworkingSocketsTransport.hpp/.cpp`
 
-UDP implementation of `NetworkTransport`.
+Standalone Valve GameNetworkingSockets implementation of `NetworkTransport`.
 
-#### `class UdpTransport`
+#### `class GameNetworkingSocketsTransport`
 
-Final concrete UDP transport.
+Final concrete connected transport.
 
 Members:
 
-- `std::intptr_t socket_`
+- `ISteamNetworkingSockets* interface_`
+- `HSteamListenSocket listenSocket_`
+- `HSteamNetPollGroup pollGroup_`
+- `HSteamNetConnection connection_`
+- `Mode mode_`
+- `bool initialized_`
+- `bool connected_`
 
-Copying is disabled because it owns an OS socket.
+Copying is disabled because it owns GNS connection/listen resources.
 
-#### `UdpTransport()`
+#### `listen(std::uint16_t port)`
 
-Default constructor.
+Initializes GNS, creates a listen socket and poll group, and accepts one client connection.
 
-#### `~UdpTransport()`
+#### `connect(const NetworkEndpoint& endpoint)`
 
-Calls `close()`.
-
-#### `open(std::uint16_t localPort)`
-
-Creates a non-blocking UDP socket.
-
-Behavior:
-
-- Closes any existing socket.
-- Starts Winsock on Windows.
-- Creates IPv4 UDP socket.
-- Binds to `INADDR_ANY` and the requested local port.
-- Sets the socket non-blocking.
-- Stores socket handle.
-
-Returns `false` on socket, bind, or non-blocking setup failure.
+Initializes GNS and starts a client connection to the server endpoint.
 
 #### `close()`
 
-Closes the socket if open.
+Closes the active connection/listen socket/poll group and shuts down GNS for this process.
 
-#### `sendTo(...)`
+#### `send(...)`
 
-Sends a byte vector to an IPv4 endpoint.
+Sends one message over the active connection using GNS reliable or unreliable flags.
 
 #### `receive()`
 
-Attempts to receive one UDP datagram. Uses a fixed 1400-byte buffer and returns `std::nullopt` when no data is available.
+Runs GNS callbacks and receives one queued message if available.
 
 ### `src/net/Serialization.hpp/.cpp`
 
@@ -386,11 +341,11 @@ Headless authoritative server application.
 
 #### `class ServerApplication`
 
-Owns UDP transport, authoritative simulation, connected client endpoint, disconnect timeout state, and snapshot sequencing.
+Owns GameNetworkingSockets transport, authoritative simulation, connected client endpoint, disconnect timeout state, and snapshot sequencing.
 
 Members:
 
-- `UdpTransport transport_`
+- `GameNetworkingSocketsTransport transport_`
 - `Simulation simulation_`
 - `std::optional<NetworkEndpoint> clientEndpoint_`
 - `std::chrono::steady_clock::time_point lastClientPacketTime_`
@@ -402,7 +357,7 @@ Starts the server and enters the main loop.
 
 Behavior:
 
-- Opens UDP port `27015`.
+- Listens with GameNetworkingSockets on port `27015`.
 - Logs startup.
 - Processes incoming network packets.
 - Checks client timeout.
@@ -413,13 +368,13 @@ Behavior:
 
 #### `processNetwork()`
 
-Consumes all currently available UDP packets.
+Consumes all currently available network messages.
 
 Packet behavior:
 
-- `ClientHello`: records client endpoint, updates last-packet time, sends `ServerWelcome`, logs connection.
-- `Disconnect`: if from current client, logs disconnect and clears endpoint.
-- `ClientInput`: records sender as client if no client is connected; if sender is current client, updates timeout time and applies deserialized input.
+- `ClientHello`: records client endpoint, updates last-packet time, sends reliable `ServerWelcome`, logs connection.
+- `Disconnect`: logs disconnect and clears endpoint.
+- `ClientInput`: updates timeout time and applies deserialized input.
 
 #### `checkClientTimeout(std::chrono::steady_clock::time_point now)`
 
@@ -428,10 +383,6 @@ If a client is connected and no packet has arrived for 5 seconds, logs timeout a
 #### `sendSnapshot()`
 
 Sends authoritative snapshot to current client. Does nothing if no client is connected.
-
-#### `isCurrentClient(const NetworkEndpoint& endpoint) const`
-
-Returns true if the endpoint matches the currently connected client by host and port.
 
 ## Client Module
 
@@ -445,24 +396,22 @@ SDL/OpenGL/Dear ImGui client application.
 
 #### `class ClientApplication`
 
-Owns the client lifecycle, SDL window, OpenGL context, input, camera, ImGui layer, renderer, UDP transport, and current network/debug state.
+Owns the client lifecycle, SDL window, OpenGL context, camera, Dear ImGui context, renderer, GameNetworkingSockets transport, layer stack, and current network/debug state.
 
 Members:
 
 - `SDL_Window* window_`
 - `SDL_GLContext glContext_`
-- `Input input_`
 - `Camera camera_`
 - `RenderDebugState debugState_`
-- `GuiLayer guiLayer_`
+- `DearImGuiContext dearImGuiContext_`
 - `OpenGLRenderer renderer_`
-- `UdpTransport transport_`
+- `GameNetworkingSocketsTransport transport_`
+- `LayerStack layerStack_`
 - `NetworkEndpoint serverEndpoint_`
 - `bool running_`
+- `bool isPaused_`
 - `bool transportOpen_`
-- `bool disconnectSent_`
-- `std::uint32_t inputSequence_`
-- `std::uint64_t clientTick_`
 
 #### `~ClientApplication()`
 
@@ -474,9 +423,8 @@ Runs the client main loop.
 
 Behavior:
 
-- Initializes SDL, OpenGL, Dear ImGui, renderer viewport, and UDP socket.
-- Sends `ClientHello`.
-- Each frame resets input deltas, processes SDL events, sends input, receives packets, renders the 3D grid, renders ImGui, swaps buffers, and delays 1 ms.
+- Initializes SDL, OpenGL, Dear ImGui, renderer viewport, and the main menu layer.
+- Each frame processes SDL events, applies deferred layer changes, updates layers, renders the 3D grid and GUI layers, swaps buffers, and delays 1 ms.
 
 #### `initialize()`
 
@@ -489,79 +437,23 @@ Behavior:
 - Creates a resizable SDL OpenGL window.
 - Creates the OpenGL context.
 - Enables vsync.
-- Enables SDL relative mouse mode.
 - Initializes the Dear ImGui SDL3/OpenGL3 backends.
-- Opens UDP socket on an ephemeral port.
 
 #### `shutdown()`
 
-Sends disconnect, closes UDP transport, shuts down Dear ImGui, shuts down renderer resources, destroys OpenGL context, destroys SDL window, and calls `SDL_Quit()`.
+Closes network transport if open, shuts down Dear ImGui, shuts down renderer resources, destroys OpenGL context, destroys SDL window, and calls `SDL_Quit()`.
 
 #### `processEvents()`
 
-Polls SDL events, forwards events to Dear ImGui, updates viewport on resize, forwards events to `Input`, and stops the loop if quit was requested.
+Polls SDL events, forwards raw events to Dear ImGui, converts supported SDL events to `game::Event`, updates viewport/layers on resize, routes layer events, and stops the loop if quit was requested.
 
-#### `processNetwork()`
+#### `requestConnect(const std::string& ip)`
 
-Consumes available UDP packets. Marks connection state on `ServerWelcome`; applies camera/debug state on `ServerSnapshot`.
-
-#### `sendInput()`
-
-Builds a `ClientInputCommand` from current input state and sends it to the server.
-
-#### `sendDisconnect()`
-
-Sends one `Disconnect` packet if the transport is open and no disconnect was already sent.
-
-### `src/client/Input.hpp/.cpp`
-
-Converts SDL events into protocol-level client input commands.
-
-#### `class Input`
-
-Tracks keyboard/mouse state.
-
-Members:
-
-- `quitRequested_`
-- `forward_`
-- `backward_`
-- `left_`
-- `right_`
-- `lookUp_`
-- `lookDown_`
-- `lookLeft_`
-- `lookRight_`
-- `lookDelta_`
-
-#### `beginFrame()`
-
-Clears accumulated mouse look delta for the new frame.
-
-#### `handleEvent(const SDL_Event& event)`
-
-Processes SDL quit, mouse motion, and keyboard events.
-
-Controls:
-
-- `Escape`: quit.
-- `W`: forward.
-- `S`: backward.
-- `A`: strafe left.
-- `D`: strafe right.
-- Arrow keys: keyboard camera look fallback.
-
-#### `command(std::uint32_t sequence, std::uint64_t clientTick) const`
-
-Builds a `ClientInputCommand`. Encodes WASD movement, mouse look delta, and arrow-key look delta.
-
-#### `quitRequested() const`
-
-Returns whether the user requested quit.
+Connects to the server, sends reliable `ClientHello`, and replaces the menu/connect layers with gameplay and overlay layers.
 
 ### `src/client/Camera.hpp/.cpp`
 
-Stores render camera state derived from authoritative player snapshots.
+Stores render camera state derived from authoritative player snapshots and owns camera presentation math.
 
 #### `class Camera`
 
@@ -577,9 +469,17 @@ Copies authoritative player state into camera state.
 
 Returns current camera/player state.
 
-### `src/client/GuiLayer.hpp/.cpp`
+#### `forwardDirection() const`
 
-Owns Dear ImGui lifecycle, SDL event forwarding, 2D debug UI, crosshair rendering, and future 2D GUI elements.
+Returns the normalized look direction derived from player yaw and pitch.
+
+#### `viewProjectionMatrix(int width, int height) const`
+
+Builds the projection/view matrix used by renderers for world-space drawing.
+
+### `src/client/DearImGuiContext.hpp/.cpp`
+
+Owns Dear ImGui lifecycle and raw SDL event forwarding.
 
 #### `struct RenderDebugState`
 
@@ -587,12 +487,14 @@ Data displayed in the ImGui overlay.
 
 Members:
 
+- `float frameTimeMs`
+- `float framesPerSecond`
 - `bool connected`
 - `std::uint32_t snapshotSequence`
 - `std::uint64_t serverTick`
 - `PlayerState player`
 
-#### `class GuiLayer`
+#### `class DearImGuiContext`
 
 Owns ImGui context and backend state.
 
@@ -600,7 +502,7 @@ Members:
 
 - `bool initialized_`
 
-#### `~GuiLayer()`
+#### `~DearImGuiContext()`
 
 Calls `shutdown()`.
 
@@ -612,9 +514,9 @@ Creates the ImGui context, enables keyboard navigation, applies the dark style, 
 
 Forwards SDL events to `ImGui_ImplSDL3_ProcessEvent` when initialized.
 
-#### `render(const RenderDebugState& debugState)`
+#### `beginFrame()` / `endFrame()`
 
-Starts a new ImGui frame, draws a foreground crosshair, draws the upper-right network debug overlay, and submits ImGui draw data through the OpenGL3 backend.
+Starts a new ImGui frame and submits ImGui draw data through the OpenGL3 backend. Individual GUI layers draw their own widgets and overlays.
 
 #### `shutdown()`
 
@@ -622,19 +524,20 @@ Shuts down ImGui OpenGL3 and SDL3 backends, destroys the ImGui context, and mark
 
 ### `src/client/OpenGLRenderer.hpp/.cpp`
 
-Minimal OpenGL debug renderer.
+High-level OpenGL frame renderer.
 
 #### `class OpenGLRenderer`
 
-Owns OpenGL debug rendering resources.
+Owns high-level OpenGL rendering resources.
 
 Members:
 
 - `int width_`
 - `int height_`
-- `unsigned int program_`
-- `unsigned int vertexArray_`
-- `unsigned int vertexBuffer_`
+- `bool initialized_`
+- `glm::vec3 objectColor_`
+- `SolidMeshRenderer solidMeshRenderer_`
+- `DebugLineRenderer debugLineRenderer_`
 
 #### `~OpenGLRenderer()`
 
@@ -653,61 +556,56 @@ Behavior:
 - Lazily initializes OpenGL resources.
 - Clears the screen.
 - Enables depth testing.
-- Builds a perspective camera from authoritative player position/yaw/pitch.
+- Requests the camera view/projection matrix from `Camera`.
+- Draws a configurable-color solid cube.
 - Draws a world-space X/Z floor grid.
 - Draws red/blue axis hints at world origin.
 
 #### `shutdown()`
 
-Deletes OpenGL buffer, vertex array, and shader program if they exist. Must be called before the SDL OpenGL context is destroyed.
+Deletes owned OpenGL resources through graphics helper classes. Must be called before the SDL OpenGL context is destroyed.
 
 #### `initialize()`
 
-Loads required OpenGL function pointers through `SDL_GL_GetProcAddress`, creates the shader program, vertex array object, vertex buffer object, and vertex attribute layout.
+Loads required OpenGL function pointers and initializes graphics helper classes.
+
+### `src/client/graphics/OpenGLFunctions.hpp/.cpp`
+
+Centralizes OpenGL function pointer declarations and loading through `SDL_GL_GetProcAddress`.
+
+### `src/client/graphics/ShaderProgram.hpp/.cpp`
+
+Owns OpenGL shader program lifecycle, shader compile/link logging, `use()`, and uniform upload.
+
+### `src/client/graphics/SolidColorShaders.hpp`
+
+Contains embedded GLSL source strings for solid-color mesh rendering. Shaders are compiled into the executable and do not require runtime shader files.
+
+### `src/client/graphics/SolidMeshRenderer.hpp/.cpp`
+
+Owns a static cube mesh, VAO/VBO resources, solid-color shader program, and `glDrawArrays` triangle submission.
+
+### `src/client/graphics/DebugLineShaders.hpp`
+
+Contains embedded GLSL source strings for the debug line shader. Shaders are compiled into the executable and do not require runtime shader files.
+
+### `src/client/graphics/DebugLineRenderer.hpp/.cpp`
+
+Owns debug-line vertex format, VAO/VBO resources, shader program, vertex upload, and `glDrawArrays` submission.
 
 ## Internal Renderer Helpers
 
-`OpenGLRenderer.cpp` has private helper functions and types in an anonymous namespace.
-
-### OpenGL Function Loading
-
-The renderer manually loads modern OpenGL functions needed for shaders, buffers, VAOs, uniforms, and program management.
-
-### `struct Vertex`
-
-Single debug vertex with position and color.
-
-### `struct Mat4`
-
-Column-major 4x4 matrix backed by `std::array<float, 16>`.
-
-### Vector/Matrix Helpers
-
-Private helpers include `dot`, `cross`, `normalize`, `multiply`, `perspective`, and `lookAt`.
-
-### Shader Helpers
-
-`compileShader` compiles GLSL shader source and logs compile errors.
-
-`createProgram` creates the simple colored-vertex shader program.
-
-### Geometry Helpers
-
 `addLine` appends two line vertices.
-
-### `drawVertices(...)`
-
-Uploads vertices to the dynamic vertex buffer and issues `glDrawArrays`.
 
 ## Current Limitations
 
 - Networking supports only one connected client.
-- UDP packets use raw native binary serialization, not endian-safe/network-byte-order serialization.
-- No packet reliability, ordering, retransmit, or jitter buffering.
+- Packet payloads use raw native binary serialization, not endian-safe/network-byte-order serialization.
+- Gameplay inputs and snapshots are sent unreliably; hello/disconnect/welcome use reliable delivery.
 - Client does not perform prediction or reconciliation.
 - Server uses the latest input only; it does not buffer per-tick input.
 - `ServerWelcome` is serialized but not fully deserialized by the client.
 - Renderer is debug-only and not yet a real scene/rendering abstraction.
-- Dear ImGui is currently used for debug UI only; there are no interactive game menus yet.
+- Dear ImGui currently powers the main/connect menu pages and debug UI.
 - Mouse-look may be unreliable under WSL2/WSLg, so arrow keys provide fallback camera look.
 - Server runs forever and currently relies on process termination for shutdown.

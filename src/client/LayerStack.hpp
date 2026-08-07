@@ -12,9 +12,11 @@ public:
     LayerStack() = default;
     ~LayerStack();
 
-    void pushLayer(std::unique_ptr<Layer> layer);
-    void pushOverlay(std::unique_ptr<Layer> layer);
-    std::unique_ptr<Layer> popLayer();
+    void requestPushLayer(std::unique_ptr<Layer> layer);
+    void requestPushOverlay(std::unique_ptr<Layer> layer);
+    void requestPopLayer();
+    void requestClear();
+    void applyPendingChanges();
 
     void onUpdate();
     void onRender();
@@ -36,7 +38,24 @@ public:
     auto end() const { return layers_.end(); }
 
 private:
+    void pushLayer(std::unique_ptr<Layer> layer);
+    void pushOverlay(std::unique_ptr<Layer> layer);
+    std::unique_ptr<Layer> popLayer();
+
+    enum class PendingOperationType {
+        PushLayer,
+        PushOverlay,
+        PopLayer,
+        Clear
+    };
+
+    struct PendingOperation {
+        PendingOperationType type;
+        std::unique_ptr<Layer> layer;
+    };
+
     std::vector<std::unique_ptr<Layer>> layers_;
+    std::vector<PendingOperation> pendingOperations_;
     std::size_t nextInsertIndex_ = 0;
     int windowWidth_ = 1280;
     int windowHeight_ = 720;

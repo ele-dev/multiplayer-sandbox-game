@@ -4,8 +4,10 @@
 
 #include <glm/glm.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <iostream>
+#include <limits>
 #include <thread>
 
 namespace game {
@@ -15,12 +17,12 @@ int ServerApplication::run() {
 
     loadConfig();
 
-    if (!transport_.open(port_)) {
-        std::cerr << "Failed to bind UDP server port " << port_ << '\n';
+    if (!transport_.listen(port_)) {
+        std::cerr << "Failed to listen on server port " << port_ << '\n';
         return 1;
     }
 
-    std::cout << "game_server listening on UDP port " << port_ << '\n';
+    std::cout << "game_server listening on port " << port_ << " via GameNetworkingSockets\n";
     std::cout << "Press Ctrl+C to stop.\n";
 
     using clock = std::chrono::steady_clock;
@@ -61,7 +63,12 @@ void ServerApplication::loadConfig() {
 
     std::cout << "Loaded server.cfg\n";
 
-    port_ = static_cast<std::uint16_t>(config_.getInt("server.port", port_));
+    const int configuredPort = config_.getInt("server.port", port_);
+    port_ = static_cast<std::uint16_t>(std::clamp(
+        configuredPort,
+        1,
+        static_cast<int>(std::numeric_limits<std::uint16_t>::max())
+    ));
 
     const int tickRate = config_.getInt("server.tick_rate", 60);
     tickSeconds_ = 1.0 / std::max(tickRate, 1);
@@ -100,12 +107,12 @@ void ServerApplication::processNetwork() {
         if (*type == PacketType::ClientHello) {
             clientEndpoint_ = packet->from;
             lastClientPacketTime_ = std::chrono::steady_clock::now();
-            transport_.sendTo(*clientEndpoint_, serializeServerWelcome(++snapshotSequence_, simulation_.player().playerId));
+            transport_.send(serializeServerWelcome(++snapshotSequence_, simulation_.player().playerId), NetworkSendMode::Reliable);
             std::cout << "client connected from " << clientEndpoint_->host << ':' << clientEndpoint_->port << '\n';
             continue;
         }
 
-        if (*type == PacketType::Disconnect && isCurrentClient(packet->from)) {
+        if (*type == PacketType::Disconnect && clientEndpoint_) {
             std::cout << "client disconnected from " << packet->from.host << ':' << packet->from.port << '\n';
             clientEndpoint_.reset();
             continue;
@@ -116,16 +123,12 @@ void ServerApplication::processNetwork() {
                 clientEndpoint_ = packet->from;
                 std::cout << "client connected from " << clientEndpoint_->host << ':' << clientEndpoint_->port << '\n';
             }
-            if (isCurrentClient(packet->from)) {
-                lastClientPacketTime_ = std::chrono::steady_clock::now();
+            lastClientPacketTime_ = std::chrono::steady_clock::now();
+            const auto input = deserializeClientInput(packet->bytes);
+            if (!input) {
+                continue;
             }
-            if (isCurrentClient(packet->from)) {
-                const auto input = deserializeClientInput(packet->bytes);
-                if (!input) {
-                    continue;
-                }
-                simulation_.applyInput(*input);
-            }
+            simulation_.applyInput(*input);
         }
     }
 }
@@ -150,11 +153,7 @@ void ServerApplication::sendSnapshot() {
     snapshot.sequence = ++snapshotSequence_;
     snapshot.serverTick = simulation_.tickCount();
     snapshot.player = simulation_.player();
-    transport_.sendTo(*clientEndpoint_, serializeServerSnapshot(snapshot));
-}
-
-bool ServerApplication::isCurrentClient(const NetworkEndpoint& endpoint) const {
-    return clientEndpoint_ && clientEndpoint_->host == endpoint.host && clientEndpoint_->port == endpoint.port;
+    transport_.send(serializeServerSnapshot(snapshot), NetworkSendMode::Unreliable);
 }
 
 } // namespace game

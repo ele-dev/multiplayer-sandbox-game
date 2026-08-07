@@ -20,8 +20,14 @@ void DebugOverlayLayer::onRender() {
         ImVec2(1.0f, 0.0f)
     );
     ImGui::SetNextWindowBgAlpha(0.62f);
-    if (ImGui::Begin("Network Debug", nullptr, debugFlags)) {
-        ImGui::TextUnformatted("Network Debug");
+    if (ImGui::Begin("Debug", nullptr, debugFlags)) {
+        ImGui::TextUnformatted("Frame");
+        ImGui::Separator();
+        ImGui::Text("fps: %.1f", debugState_.framesPerSecond);
+        ImGui::Text("frame: %.2f ms", debugState_.frameTimeMs);
+
+        ImGui::Spacing();
+        ImGui::TextUnformatted("Network");
         ImGui::Separator();
         ImGui::Text("connected: %s", debugState_.connected ? "yes" : "no");
         ImGui::Text("server tick: %llu", static_cast<unsigned long long>(debugState_.serverTick));

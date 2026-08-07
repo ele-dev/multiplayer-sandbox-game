@@ -1,14 +1,15 @@
 #pragma once
 
 #include "client/Camera.hpp"
-#include "client/GuiLayer.hpp"
-#include "client/Input.hpp"
+#include "client/DearImGuiContext.hpp"
 #include "client/LayerStack.hpp"
 #include "client/OpenGLRenderer.hpp"
-#include "net/UdpTransport.hpp"
+#include "client/RenderDebugState.hpp"
+#include "net/GameNetworkingSocketsTransport.hpp"
 
 #include <SDL3/SDL_video.h>
 
+#include <chrono>
 #include <cstdint>
 #include <string>
 
@@ -27,29 +28,29 @@ public:
 private:
     bool initialize();
     void shutdown();
+    void updateFrameTiming();
     void processEvents();
     void updateRelativeMouse();
 
-    void requestPlay();
     void requestConnect(const std::string& ip);
     void requestReturnToStart();
     void onPauseToggled(bool paused);
 
-    Event convertEvent(const SDL_Event& sdlEvent) const;
-
     SDL_Window* window_ = nullptr;
     SDL_GLContext glContext_ = nullptr;
-    Input input_;
     Camera camera_;
     RenderDebugState debugState_;
-    GuiLayer guiLayer_;
+    DearImGuiContext dearImGuiContext_;
     OpenGLRenderer renderer_;
-    UdpTransport transport_;
+    GameNetworkingSocketsTransport transport_;
     LayerStack layerStack_;
     NetworkEndpoint serverEndpoint_ = {"127.0.0.1", defaultServerPort};
+    std::chrono::steady_clock::time_point lastFrameTime_ = {};
     bool running_ = true;
     bool isPaused_ = false;
     bool transportOpen_ = false;
+    bool hasFrameTime_ = false;
+    float smoothedFrameTimeMs_ = 0.0f;
 };
 
 } // namespace game

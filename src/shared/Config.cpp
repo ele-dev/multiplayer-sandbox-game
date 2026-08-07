@@ -26,6 +26,8 @@ bool Config::loadFile(const std::string& path) {
         return false;
     }
 
+    values_.clear();
+
     std::string line;
     int lineNum = 0;
     while (std::getline(file, line)) {
