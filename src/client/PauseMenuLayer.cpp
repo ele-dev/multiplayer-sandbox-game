@@ -1,5 +1,6 @@
 #include "client/PauseMenuLayer.hpp"
 
+#include <SDL3/SDL_gamepad.h>
 #include <SDL3/SDL_scancode.h>
 
 #include <imgui.h>
@@ -21,6 +22,14 @@ void PauseMenuLayer::onEvent(Event& event) {
         event.consumed = true;
         return;
     }
+
+    if (event.type == EventType::GamepadButtonDown && event.gamepadButton.button == SDL_GAMEPAD_BUTTON_START) {
+        if (onResume_) {
+            onResume_();
+        }
+        event.consumed = true;
+        return;
+    }
 }
 
 void PauseMenuLayer::onRender() {
@@ -31,8 +40,7 @@ void PauseMenuLayer::onRender() {
         ImGuiWindowFlags_NoDecoration |
         ImGuiWindowFlags_AlwaysAutoResize |
         ImGuiWindowFlags_NoSavedSettings |
-        ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoNav;
+        ImGuiWindowFlags_NoMove;
 
     ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowBgAlpha(0.35f);
@@ -48,6 +56,7 @@ void PauseMenuLayer::onRender() {
                 onResume_();
             }
         }
+        ImGui::SetItemDefaultFocus();
 
         ImGui::Dummy(ImVec2(0.0f, 8.0f));
 

@@ -32,8 +32,7 @@ void MainMenuLayer::renderStartPage() {
         ImGuiWindowFlags_NoDecoration |
         ImGuiWindowFlags_AlwaysAutoResize |
         ImGuiWindowFlags_NoSavedSettings |
-        ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoNav;
+        ImGuiWindowFlags_NoMove;
 
     if (ImGui::Begin("Start Screen", nullptr, flags)) {
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(24.0f, 12.0f));
@@ -50,6 +49,7 @@ void MainMenuLayer::renderStartPage() {
         if (ImGui::Button("Play", ImVec2(220.0f, 0.0f))) {
             activePage_ = Page::Connect;
         }
+        ImGui::SetItemDefaultFocus();
 
         ImGui::Dummy(ImVec2(0.0f, 8.0f));
 
@@ -76,8 +76,7 @@ void MainMenuLayer::renderConnectPage() {
         ImGuiWindowFlags_NoDecoration |
         ImGuiWindowFlags_AlwaysAutoResize |
         ImGuiWindowFlags_NoSavedSettings |
-        ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoNav;
+        ImGuiWindowFlags_NoMove;
 
     if (ImGui::Begin("Connect", nullptr, flags)) {
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(12.0f, 8.0f));
@@ -86,6 +85,7 @@ void MainMenuLayer::renderConnectPage() {
         ImGui::TextUnformatted("Server Address");
         ImGui::PushItemWidth(220.0f);
         ImGui::InputText("##ip", ipBuffer_, sizeof(ipBuffer_));
+        ImGui::SetItemDefaultFocus();
         ImGui::PopItemWidth();
 
         if (!errorMessage_.empty()) {

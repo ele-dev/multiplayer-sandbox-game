@@ -8,6 +8,7 @@
 #include "net/Serialization.hpp"
 
 #include <SDL3/SDL_error.h>
+#include <SDL3/SDL_gamepad.h>
 #include <SDL3/SDL_init.h>
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_timer.h>
@@ -66,10 +67,12 @@ int ClientApplication::run() {
 }
 
 bool ClientApplication::initialize() {
-    if (!SDL_Init(SDL_INIT_VIDEO)) {
+    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD)) {
         std::cerr << "SDL_Init failed: " << SDL_GetError() << '\n';
         return false;
     }
+
+    openAvailableGamepads();
 
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
@@ -108,6 +111,10 @@ void ClientApplication::shutdown() {
     }
     dearImGuiContext_.shutdown();
     renderer_.shutdown();
+    for (SDL_Gamepad* gamepad : gamepads_) {
+        SDL_CloseGamepad(gamepad);
+    }
+    gamepads_.clear();
     if (glContext_ != nullptr) {
         SDL_GL_DestroyContext(glContext_);
         glContext_ = nullptr;
@@ -166,6 +173,14 @@ void ClientApplication::processEvents() {
             continue;
         }
 
+        if (event->type == EventType::GamepadAdded) {
+            openGamepad(event->gamepadDevice.id);
+        }
+
+        if (event->type == EventType::GamepadRemoved) {
+            closeGamepad(event->gamepadDevice.id);
+        }
+
         // Handle additional application-wide events here
         // ...
 
@@ -176,6 +191,52 @@ void ClientApplication::processEvents() {
 void ClientApplication::updateRelativeMouse() {
     const bool wanted = layerStack_.wantsRelativeMouse();
     SDL_SetWindowRelativeMouseMode(window_, wanted);
+}
+
+void ClientApplication::openAvailableGamepads() {
+    int gamepadCount = 0;
+    SDL_JoystickID* gamepadIds = SDL_GetGamepads(&gamepadCount);
+    if (gamepadIds == nullptr) {
+        return;
+    }
+
+    for (int i = 0; i < gamepadCount; ++i) {
+        openGamepad(gamepadIds[i]);
+    }
+
+    SDL_free(gamepadIds);
+}
+
+void ClientApplication::openGamepad(SDL_JoystickID id) {
+    const auto alreadyOpen = std::any_of(gamepads_.begin(), gamepads_.end(), [id](SDL_Gamepad* gamepad) {
+        return SDL_GetGamepadID(gamepad) == id;
+    });
+    if (alreadyOpen) {
+        return;
+    }
+
+    SDL_Gamepad* gamepad = SDL_OpenGamepad(id);
+    if (gamepad == nullptr) {
+        std::cerr << "SDL_OpenGamepad failed: " << SDL_GetError() << '\n';
+        return;
+    }
+
+    gamepads_.push_back(gamepad);
+    const char* gamepadName = SDL_GetGamepadName(gamepad);
+    std::cout << "gamepad connected: " << (gamepadName != nullptr ? gamepadName : "unknown") << '\n';
+}
+
+void ClientApplication::closeGamepad(SDL_JoystickID id) {
+    const auto it = std::find_if(gamepads_.begin(), gamepads_.end(), [id](SDL_Gamepad* gamepad) {
+        return SDL_GetGamepadID(gamepad) == id;
+    });
+    if (it == gamepads_.end()) {
+        return;
+    }
+
+    std::cout << "gamepad disconnected\n";
+    SDL_CloseGamepad(*it);
+    gamepads_.erase(it);
 }
 
 void ClientApplication::requestConnect(const std::string& ip) {

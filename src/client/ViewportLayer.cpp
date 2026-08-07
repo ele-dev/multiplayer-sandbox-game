@@ -2,11 +2,26 @@
 
 #include "net/Serialization.hpp"
 
+#include <SDL3/SDL_gamepad.h>
 #include <SDL3/SDL_scancode.h>
 
 #include <iostream>
 
 namespace game {
+
+namespace {
+
+constexpr float gamepadDeadzone = 0.18f;
+constexpr float gamepadLookDeltaPerFrame = 10.0f;
+
+float applyDeadzone(float value) {
+    if (value > -gamepadDeadzone && value < gamepadDeadzone) {
+        return 0.0f;
+    }
+    return value;
+}
+
+} // namespace
 
 ViewportLayer::ViewportLayer(
     Camera& camera,
@@ -38,6 +53,8 @@ void ViewportLayer::onAttach() {
     lookDown_ = false;
     lookLeft_ = false;
     lookRight_ = false;
+    gamepadMove_ = {};
+    gamepadLook_ = {};
     lookDelta_ = {};
     inputSequence_ = 0;
     clientTick_ = 0;
@@ -72,9 +89,50 @@ void ViewportLayer::onEvent(Event& event) {
         return;
     }
 
+    if (event.type == EventType::GamepadButtonDown && event.gamepadButton.button == SDL_GAMEPAD_BUTTON_START) {
+        isPaused_ = !isPaused_;
+        if (onPauseToggle_) {
+            onPauseToggle_(isPaused_);
+        }
+        event.consumed = true;
+        return;
+    }
+
     if (event.type == EventType::MouseMove) {
         lookDelta_.x += event.mouseMove.xrel;
         lookDelta_.y -= event.mouseMove.yrel;
+        event.consumed = true;
+        return;
+    }
+
+    if (event.type == EventType::GamepadAxisMotion) {
+        const float value = applyDeadzone(event.gamepadAxis.value);
+        switch (event.gamepadAxis.axis) {
+        case SDL_GAMEPAD_AXIS_LEFTX:
+            gamepadMove_.x = value;
+            event.consumed = true;
+            break;
+        case SDL_GAMEPAD_AXIS_LEFTY:
+            gamepadMove_.y = -value;
+            event.consumed = true;
+            break;
+        case SDL_GAMEPAD_AXIS_RIGHTX:
+            gamepadLook_.x = value;
+            event.consumed = true;
+            break;
+        case SDL_GAMEPAD_AXIS_RIGHTY:
+            gamepadLook_.y = -value;
+            event.consumed = true;
+            break;
+        default:
+            break;
+        }
+        return;
+    }
+
+    if (event.type == EventType::GamepadRemoved) {
+        gamepadMove_ = {};
+        gamepadLook_ = {};
         event.consumed = true;
         return;
     }
@@ -132,11 +190,13 @@ ClientInputCommand ViewportLayer::buildInputCommand(std::uint32_t sequence, std:
     ClientInputCommand result;
     result.sequence = sequence;
     result.clientTick = clientTick;
-    result.movement.x = (right_ ? 1.0f : 0.0f) - (left_ ? 1.0f : 0.0f);
-    result.movement.y = (forward_ ? 1.0f : 0.0f) - (backward_ ? 1.0f : 0.0f);
+    result.movement.x = (right_ ? 1.0f : 0.0f) - (left_ ? 1.0f : 0.0f) + gamepadMove_.x;
+    result.movement.y = (forward_ ? 1.0f : 0.0f) - (backward_ ? 1.0f : 0.0f) + gamepadMove_.y;
     result.lookDelta = lookDelta_;
     result.lookDelta.x += ((lookRight_ ? 1.0f : 0.0f) - (lookLeft_ ? 1.0f : 0.0f)) * keyboardLookDeltaPerFrame;
     result.lookDelta.y += ((lookUp_ ? 1.0f : 0.0f) - (lookDown_ ? 1.0f : 0.0f)) * keyboardLookDeltaPerFrame;
+    result.lookDelta.x += gamepadLook_.x * gamepadLookDeltaPerFrame;
+    result.lookDelta.y += gamepadLook_.y * gamepadLookDeltaPerFrame;
     return result;
 }
 

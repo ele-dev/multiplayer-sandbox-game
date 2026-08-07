@@ -58,6 +58,8 @@ private:
     bool lookDown_ = false;
     bool lookLeft_ = false;
     bool lookRight_ = false;
+    glm::vec2 gamepadMove_ = {};
+    glm::vec2 gamepadLook_ = {};
     glm::vec2 lookDelta_ = {};
     std::uint32_t inputSequence_ = 0;
     std::uint64_t clientTick_ = 0;

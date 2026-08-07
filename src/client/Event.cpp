@@ -7,6 +7,16 @@
 
 namespace game {
 
+namespace {
+
+float normalizeGamepadAxis(Sint16 value) {
+    constexpr float positiveScale = 32767.0f;
+    constexpr float negativeScale = 32768.0f;
+    return value >= 0 ? static_cast<float>(value) / positiveScale : static_cast<float>(value) / negativeScale;
+}
+
+} // namespace
+
 std::optional<Event> convertSdlEvent(const SDL_Event& sdlEvent) {
     Event event{};
 
@@ -46,6 +56,30 @@ std::optional<Event> convertSdlEvent(const SDL_Event& sdlEvent) {
         event.type = EventType::MouseWheel;
         event.mouseWheel.x = sdlEvent.wheel.x;
         event.mouseWheel.y = sdlEvent.wheel.y;
+        return event;
+    case SDL_EVENT_GAMEPAD_ADDED:
+        event.type = EventType::GamepadAdded;
+        event.gamepadDevice.id = sdlEvent.gdevice.which;
+        return event;
+    case SDL_EVENT_GAMEPAD_REMOVED:
+        event.type = EventType::GamepadRemoved;
+        event.gamepadDevice.id = sdlEvent.gdevice.which;
+        return event;
+    case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+        event.type = EventType::GamepadButtonDown;
+        event.gamepadButton.id = sdlEvent.gbutton.which;
+        event.gamepadButton.button = static_cast<SDL_GamepadButton>(sdlEvent.gbutton.button);
+        return event;
+    case SDL_EVENT_GAMEPAD_BUTTON_UP:
+        event.type = EventType::GamepadButtonUp;
+        event.gamepadButton.id = sdlEvent.gbutton.which;
+        event.gamepadButton.button = static_cast<SDL_GamepadButton>(sdlEvent.gbutton.button);
+        return event;
+    case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+        event.type = EventType::GamepadAxisMotion;
+        event.gamepadAxis.id = sdlEvent.gaxis.which;
+        event.gamepadAxis.axis = static_cast<SDL_GamepadAxis>(sdlEvent.gaxis.axis);
+        event.gamepadAxis.value = normalizeGamepadAxis(sdlEvent.gaxis.value);
         return event;
     case SDL_EVENT_TEXT_INPUT:
         event.type = EventType::TextInput;
