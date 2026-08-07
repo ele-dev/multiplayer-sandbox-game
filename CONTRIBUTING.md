@@ -14,6 +14,32 @@ Use the project `Status` field consistently:
 - `In Review`: work with an open pull request or pending review.
 - `Done`: completed and verified work.
 
+Use the project `Priority` field to order ready work:
+
+- `Urgent`: take before all other ready work.
+- `High`: important work that should be prioritized soon.
+- `Medium`: normal priority planned work.
+- `Low`: useful but not time-sensitive work.
+- Unset: not yet triaged; lower priority than explicitly ranked work.
+
+## Autonomous Agent Workflow
+
+Autonomous coding agents should use this flow unless a task explicitly says otherwise:
+
+- Select only project items with `Status=Ready`.
+- Choose the next task by `Priority`: `Urgent`, `High`, `Medium`, `Low`, then unset.
+- If multiple ready tasks have the same priority, use project order.
+- If requirements are unclear before implementation starts, ask on the issue and leave the item in `Ready` or move it back to `Backlog`.
+- When claiming a task, set `Status=In Progress`.
+- Create a feature branch from the latest `develop` commit.
+- Use branch names like `agent/issue-8-docker-server-image`.
+- Implement the smallest correct change that satisfies the issue.
+- Run relevant local checks before opening a PR when practical.
+- Open a pull request when the task is complete or when assistance is needed.
+- Move the project item to `In Review` when the PR is opened.
+- Use PR comments or review replies for iterative adjustments.
+- Never merge automatically; the repository owner remains the merge gate.
+
 ## Branching
 
 Base implementation work on the latest `develop` commit unless the task explicitly says otherwise.
