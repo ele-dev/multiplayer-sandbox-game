@@ -5,7 +5,7 @@
 #include "client/LayerStack.hpp"
 #include "client/OpenGLRenderer.hpp"
 #include "client/RenderDebugState.hpp"
-#include "net/UdpTransport.hpp"
+#include "net/GameNetworkingSocketsTransport.hpp"
 
 #include <SDL3/SDL_video.h>
 
@@ -42,7 +42,7 @@ private:
     RenderDebugState debugState_;
     DearImGuiContext dearImGuiContext_;
     OpenGLRenderer renderer_;
-    UdpTransport transport_;
+    GameNetworkingSocketsTransport transport_;
     LayerStack layerStack_;
     NetworkEndpoint serverEndpoint_ = {"127.0.0.1", defaultServerPort};
     std::chrono::steady_clock::time_point lastFrameTime_ = {};

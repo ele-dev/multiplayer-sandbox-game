@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Multiplayer Sandbox Game Client
+Exec=game_client
+Icon=game_client
+Categories=Game;
+Terminal=false

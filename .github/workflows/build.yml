@@ -14,14 +14,19 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            libprotobuf-dev \
+            libssl-dev \
+            file \
+            libfuse2 \
             ninja-build \
             pkg-config \
+            protobuf-compiler \
             libasound2-dev \
             libdbus-1-dev \
             libdecor-0-dev \
@@ -47,36 +52,42 @@ jobs:
             libxtst-dev \
             wayland-protocols
 
-      - name: Install CMake
-        run: |
-          python3 -m pip install --user "cmake>=3.25,<4"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Install latest CMake + Ninja
+        uses: lukka/get-cmake@latest
 
-      - name: Check CMake version
-        run: cmake --version
+      - name: Check tooling version
+        run: |
+          gcc --version
+          g++ --version
+          cmake --version
+          ninja --version
+          protoc --version
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
         run: |
-          build_jobs=$(nproc)
-          build_jobs=$(( build_jobs > 1 ? build_jobs / 2 : 1 ))
-          cmake --build build --parallel "$build_jobs"
+          cmake --build build --parallel
 
-      - name: Package binaries
+      - name: Package AppImages
         run: |
-          mkdir -p package/linux
-          cp build/game_client package/linux/
-          cp build/game_server package/linux/
-          cp server.cfg package/linux/
-          find build -name 'libSDL3.so*' -type f -exec cp -P {} package/linux/ \;
+          chmod +x packaging/linux/build-appimages.sh
+          packaging/linux/build-appimages.sh
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload client AppImage
+        uses: actions/upload-artifact@v6
         with:
-          name: multiplayer-sandbox-game-linux
-          path: package/linux/
+          name: multiplayer-sandbox-game-client-linux-appimage
+          path: dist/linux/*client*.AppImage
+
+      - name: Upload server AppImage
+        uses: actions/upload-artifact@v6
+        with:
+          name: multiplayer-sandbox-game-server-linux-appimage
+          path: |
+            dist/linux/*server*.AppImage
+            dist/linux/server.cfg
 
   windows:
     name: Windows Release
@@ -84,16 +95,50 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+
+      - name: Install latest CMake + Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Cache vcpkg binary dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ${{ github.workspace }}/vcpkg-binary-cache
+            C:\vcpkg\downloads
+          key: ${{ runner.os }}-vcpkg-binary-protobuf-x64-windows-v2-${{ hashFiles('.github/workflows/build.yml', 'CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-vcpkg-binary-protobuf-x64-windows-v2-
+
+      - name: Install build and runtime dependencies
+        shell: pwsh
+        env:
+          VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/vcpkg-binary-cache,readwrite
+        run: |
+          New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/vcpkg-binary-cache" | Out-Null
+          vcpkg install protobuf:x64-windows
+
+      - name: Check tooling version
+        run: |
+          cmake --version
+          ninja --version
+          vcpkg --version
 
       - name: Configure
-        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T v143 -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL
+        shell: pwsh
+        run: >-
+          cmake -S . -B build
+          -G "Visual Studio 17 2022"
+          -A x64
+          -T v143
+          -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL
+          -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+          -DVCPKG_TARGET_TRIPLET=x64-windows
 
       - name: Build
         shell: pwsh
         run: |
-          $buildJobs = [Math]::Max(1, [Math]::Floor([Environment]::ProcessorCount / 2))
-          cmake --build build --config Release --parallel $buildJobs
+          cmake --build build --config Release --parallel
 
       - name: Package binaries
         shell: pwsh
@@ -102,10 +147,11 @@ jobs:
           Copy-Item build/Release/game_client.exe package/windows/
           Copy-Item build/Release/game_server.exe package/windows/
           Copy-Item server.cfg package/windows/
-          Get-ChildItem -Path build -Recurse -Filter SDL3.dll | ForEach-Object { Copy-Item $_.FullName package/windows/ }
+          Get-ChildItem -Path build -Recurse -Filter *.dll | ForEach-Object { Copy-Item $_.FullName package/windows/ }
+          Get-ChildItem -Path "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/bin" -Filter *.dll | ForEach-Object { Copy-Item $_.FullName package/windows/ }
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: multiplayer-sandbox-game-windows
           path: package/windows/

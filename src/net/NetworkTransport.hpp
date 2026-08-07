@@ -18,13 +18,19 @@ struct NetworkPacket {
     std::vector<std::uint8_t> bytes;
 };
 
+enum class NetworkSendMode {
+    Unreliable,
+    Reliable
+};
+
 class NetworkTransport {
 public:
     virtual ~NetworkTransport() = default;
 
-    virtual bool open(std::uint16_t localPort) = 0;
+    virtual bool listen(std::uint16_t port) = 0;
+    virtual bool connect(const NetworkEndpoint& endpoint) = 0;
     virtual void close() = 0;
-    virtual bool sendTo(const NetworkEndpoint& endpoint, const std::vector<std::uint8_t>& bytes) = 0;
+    virtual bool send(const std::vector<std::uint8_t>& bytes, NetworkSendMode mode = NetworkSendMode::Unreliable) = 0;
     virtual std::optional<NetworkPacket> receive() = 0;
 };
 

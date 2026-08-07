@@ -1,6 +1,7 @@
 build/
 out/
 dist/
+.cache/
 
 # CMake generated files
 CMakeCache.txt
@@ -29,3 +30,7 @@ docs/*.pdf
 *.swo
 .DS_Store
 Thumbs.db
+
+# legacy files
+*.orig
+*.bak

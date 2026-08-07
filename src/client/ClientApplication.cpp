@@ -180,13 +180,13 @@ void ClientApplication::updateRelativeMouse() {
 
 void ClientApplication::requestConnect(const std::string& ip) {
     serverEndpoint_ = {ip, defaultServerPort};
-    if (!transport_.open(0)) {
-        std::cerr << "Failed to open client UDP socket\n";
+    if (!transport_.connect(serverEndpoint_)) {
+        std::cerr << "Failed to connect to server\n";
         return;
     }
     transportOpen_ = true;
 
-    transport_.sendTo(serverEndpoint_, serializeClientHello(1));
+    transport_.send(serializeClientHello(1), NetworkSendMode::Reliable);
     std::cout << "game_client sending to " << serverEndpoint_.host << ':' << serverEndpoint_.port << '\n';
 
     isPaused_ = false;

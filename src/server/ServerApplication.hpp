@@ -1,6 +1,6 @@
 #pragma once
 
-#include "net/UdpTransport.hpp"
+#include "net/GameNetworkingSocketsTransport.hpp"
 #include "shared/Config.hpp"
 #include "shared/Simulation.hpp"
 
@@ -19,10 +19,9 @@ private:
     void processNetwork();
     void checkClientTimeout(std::chrono::steady_clock::time_point now);
     void sendSnapshot();
-    [[nodiscard]] bool isCurrentClient(const NetworkEndpoint& endpoint) const;
 
     Config config_;
-    UdpTransport transport_;
+    GameNetworkingSocketsTransport transport_;
     Simulation simulation_;
     std::optional<NetworkEndpoint> clientEndpoint_;
     std::chrono::steady_clock::time_point lastClientPacketTime_ = std::chrono::steady_clock::now();

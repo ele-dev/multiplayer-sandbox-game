@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Multiplayer Sandbox Game Server
+Exec=game_server
+Icon=game_server
+Categories=Game;
+Terminal=true

@@ -12,7 +12,7 @@ ViewportLayer::ViewportLayer(
     Camera& camera,
     RenderDebugState& debugState,
     OpenGLRenderer& renderer,
-    UdpTransport& transport,
+    NetworkTransport& transport,
     const NetworkEndpoint& serverEndpoint,
     bool& isPaused,
     PauseToggleCallback onPauseToggle,
@@ -45,7 +45,7 @@ void ViewportLayer::onAttach() {
 
 void ViewportLayer::onDetach() {
     if (!disconnectSent_) {
-        transport_.sendTo(serverEndpoint_, serializeDisconnect(++inputSequence_));
+        transport_.send(serializeDisconnect(++inputSequence_), NetworkSendMode::Reliable);
         disconnectSent_ = true;
     }
     transport_.close();
@@ -54,7 +54,7 @@ void ViewportLayer::onDetach() {
 
 void ViewportLayer::onUpdate() {
     const auto inputCommand = buildInputCommand(++inputSequence_, ++clientTick_);
-    transport_.sendTo(serverEndpoint_, serializeClientInput(inputCommand));
+    transport_.send(serializeClientInput(inputCommand), NetworkSendMode::Unreliable);
     lookDelta_ = {};
 
     processNetwork();
