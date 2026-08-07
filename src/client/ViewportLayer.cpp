@@ -121,7 +121,7 @@ void ViewportLayer::onEvent(Event& event) {
             event.consumed = true;
             break;
         case SDL_GAMEPAD_AXIS_RIGHTY:
-            gamepadLook_.y = value;
+            gamepadLook_.y = -value;
             event.consumed = true;
             break;
         default:
