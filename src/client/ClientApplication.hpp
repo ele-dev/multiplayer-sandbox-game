@@ -7,11 +7,14 @@
 #include "client/RenderDebugState.hpp"
 #include "net/GameNetworkingSocketsTransport.hpp"
 
+#include <SDL3/SDL_gamepad.h>
+#include <SDL3/SDL_joystick.h>
 #include <SDL3/SDL_video.h>
 
 #include <chrono>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace game {
 
@@ -31,6 +34,9 @@ private:
     void updateFrameTiming();
     void processEvents();
     void updateRelativeMouse();
+    void openAvailableGamepads();
+    void openGamepad(SDL_JoystickID id);
+    void closeGamepad(SDL_JoystickID id);
 
     void requestConnect(const std::string& ip);
     void requestReturnToStart();
@@ -38,6 +44,7 @@ private:
 
     SDL_Window* window_ = nullptr;
     SDL_GLContext glContext_ = nullptr;
+    std::vector<SDL_Gamepad*> gamepads_;
     Camera camera_;
     RenderDebugState debugState_;
     DearImGuiContext dearImGuiContext_;

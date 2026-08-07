@@ -20,6 +20,7 @@ bool DearImGuiContext::initialize(SDL_Window* window, SDL_GLContext glContext) {
 
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
     io.IniFilename = nullptr;
 
     ImGui::StyleColorsDark();
