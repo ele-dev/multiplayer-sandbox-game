@@ -118,6 +118,7 @@ bool GameNetworkingSocketsTransport::connect(const NetworkEndpoint& endpoint) {
     }
 
     mode_ = Mode::Client;
+    state_ = ConnectionState::Connecting;
     return true;
 }
 
@@ -142,7 +143,8 @@ void GameNetworkingSocketsTransport::close() {
 
     interface_ = nullptr;
     mode_ = Mode::None;
-    connected_ = false;
+    state_ = ConnectionState::None;
+    failureReason_ = ConnectionFailureReason::None;
 
     if (initialized_) {
         initialized_ = false;
@@ -223,19 +225,30 @@ void GameNetworkingSocketsTransport::onConnectionStatusChanged(SteamNetConnectio
             return;
         }
         connection_ = info->m_hConn;
-        connected_ = true;
+        state_ = ConnectionState::Connected;
         std::cout << "GameNetworkingSockets client connected: " << info->m_info.m_szConnectionDescription << '\n';
         break;
     case k_ESteamNetworkingConnectionState_Connected:
         if (mode_ == Mode::Client && info->m_hConn == connection_) {
-            connected_ = true;
+            state_ = ConnectionState::Connected;
             std::cout << "GameNetworkingSockets connected to server\n";
         }
         break;
     case k_ESteamNetworkingConnectionState_ClosedByPeer:
+        if (info->m_hConn == connection_) {
+            failureReason_ = ConnectionFailureReason::ClosedByPeer;
+            state_ = ConnectionState::Failed;
+            std::cout << "GameNetworkingSockets connection closed by peer: " << info->m_info.m_szEndDebug << '\n';
+            resetConnection();
+        } else if (interface_ != nullptr) {
+            interface_->CloseConnection(info->m_hConn, 0, nullptr, false);
+        }
+        break;
     case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
         if (info->m_hConn == connection_) {
-            std::cout << "GameNetworkingSockets connection closed: " << info->m_info.m_szEndDebug << '\n';
+            failureReason_ = ConnectionFailureReason::ProblemDetectedLocally;
+            state_ = ConnectionState::Failed;
+            std::cout << "GameNetworkingSockets problem detected locally: " << info->m_info.m_szEndDebug << '\n';
             resetConnection();
         } else if (interface_ != nullptr) {
             interface_->CloseConnection(info->m_hConn, 0, nullptr, false);
@@ -270,12 +283,25 @@ int GameNetworkingSocketsTransport::sendFlags(NetworkSendMode mode) const {
     return mode == NetworkSendMode::Reliable ? k_nSteamNetworkingSend_Reliable : k_nSteamNetworkingSend_Unreliable;
 }
 
+GameNetworkingSocketsTransport::ConnectionState GameNetworkingSocketsTransport::getConnectionState() const {
+    return state_;
+}
+
+GameNetworkingSocketsTransport::ConnectionFailureReason GameNetworkingSocketsTransport::getFailureReason() const {
+    return failureReason_;
+}
+
+bool GameNetworkingSocketsTransport::isConnected() const {
+    return state_ == ConnectionState::Connected;
+}
+
 void GameNetworkingSocketsTransport::resetConnection() {
     if (interface_ != nullptr && connection_ != k_HSteamNetConnection_Invalid) {
         interface_->CloseConnection(connection_, 0, nullptr, false);
     }
     connection_ = k_HSteamNetConnection_Invalid;
-    connected_ = false;
+    state_ = ConnectionState::None;
+    failureReason_ = ConnectionFailureReason::None;
 }
 
 } // namespace game

@@ -22,6 +22,24 @@ public:
     bool send(const std::vector<std::uint8_t>& bytes, NetworkSendMode mode = NetworkSendMode::Unreliable) override;
     std::optional<NetworkPacket> receive() override;
 
+    enum class ConnectionState {
+        None,
+        Connecting,
+        Connected,
+        Failed
+    };
+
+    enum class ConnectionFailureReason {
+        None,
+        Timeout,
+        ClosedByPeer,
+        ProblemDetectedLocally
+    };
+
+    [[nodiscard]] ConnectionState getConnectionState() const;
+    [[nodiscard]] ConnectionFailureReason getFailureReason() const;
+    [[nodiscard]] bool isConnected() const;
+
 private:
     enum class Mode {
         None,
@@ -42,7 +60,8 @@ private:
     HSteamNetConnection connection_ = k_HSteamNetConnection_Invalid;
     Mode mode_ = Mode::None;
     bool initialized_ = false;
-    bool connected_ = false;
+    ConnectionState state_ = ConnectionState::None;
+    ConnectionFailureReason failureReason_ = ConnectionFailureReason::None;
 };
 
 } // namespace game
