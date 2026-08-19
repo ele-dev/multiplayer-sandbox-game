@@ -5,6 +5,13 @@ on:
     branches:
       - main
       - develop
+    paths-ignore:
+      - '*.md'
+      - '.gitignore'
+      - '.github/workflows/*.yml'
+      - 'docs/**'
+      - 'LICENSE'
+      - 'README*'
   workflow_dispatch:
 
 jobs:
