@@ -187,6 +187,8 @@ add_executable(game_client
     src/client/LayerStack.cpp
     src/client/MainMenuLayer.cpp
     src/client/OpenGLRenderer.cpp
+    src/client/ConnectingLayer.cpp
+    src/client/ErrorPopupLayer.cpp
     src/client/PauseMenuLayer.cpp
     src/client/ViewportLayer.cpp
 )

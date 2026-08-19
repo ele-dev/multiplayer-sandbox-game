@@ -1,5 +1,7 @@
 #include "client/ClientApplication.hpp"
+#include "client/ConnectingLayer.hpp"
 #include "client/DebugOverlayLayer.hpp"
+#include "client/ErrorPopupLayer.hpp"
 #include "client/HudLayer.hpp"
 #include "client/MainMenuLayer.hpp"
 #include "client/PauseMenuLayer.hpp"
@@ -186,6 +188,59 @@ void ClientApplication::processEvents() {
 
         layerStack_.onEvent(*event);
     }
+
+    if (hasPendingConnection_) {
+        transport_.updateConnectionState();
+        const auto connectionState = transport_.getConnectionState();
+        
+        if (connectionState == GameNetworkingSocketsTransport::ConnectionState::Connected) {
+            hasPendingConnection_ = false;
+            connectionStartTime_ = {};
+
+            layerStack_.requestClear();
+
+            layerStack_.requestPushLayer(std::make_unique<ViewportLayer>(
+                camera_,
+                debugState_,
+                renderer_,
+                transport_,
+                serverEndpoint_,
+                isPaused_,
+                [this](bool paused) { onPauseToggled(paused); },
+                [this]() { requestReturnToStart(); }
+            ));
+
+            layerStack_.requestPushOverlay(std::make_unique<HudLayer>(isPaused_));
+            layerStack_.requestPushOverlay(std::make_unique<DebugOverlayLayer>(debugState_));
+        }
+        else if (connectionState == GameNetworkingSocketsTransport::ConnectionState::Failed) {
+            hasPendingConnection_ = false;
+            connectionStartTime_ = {};
+
+            layerStack_.requestClear();
+
+            layerStack_.requestPushOverlay(std::make_unique<ErrorPopupLayer>([this]() {
+                requestReturnToStart();
+            }));
+        }
+        else if (connectionState == GameNetworkingSocketsTransport::ConnectionState::Connecting) {
+            const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - connectionStartTime_
+            ).count();
+
+            if (elapsed >= 5000) {
+                std::cerr << "Connection timeout after 5 seconds\n";
+                hasPendingConnection_ = false;
+                connectionStartTime_ = {};
+
+                layerStack_.requestClear();
+
+                layerStack_.requestPushOverlay(std::make_unique<ErrorPopupLayer>([this]() {
+                    requestReturnToStart();
+                }));
+            }
+        }
+    }
 }
 
 void ClientApplication::updateRelativeMouse() {
@@ -246,6 +301,8 @@ void ClientApplication::requestConnect(const std::string& ip) {
         return;
     }
     transportOpen_ = true;
+    hasPendingConnection_ = true;
+    connectionStartTime_ = std::chrono::steady_clock::now();
 
     transport_.send(serializeClientHello(1), NetworkSendMode::Reliable);
     std::cout << "game_client sending to " << serverEndpoint_.host << ':' << serverEndpoint_.port << '\n';
@@ -254,19 +311,10 @@ void ClientApplication::requestConnect(const std::string& ip) {
 
     layerStack_.requestClear();
 
-    layerStack_.requestPushLayer(std::make_unique<ViewportLayer>(
-        camera_,
-        debugState_,
-        renderer_,
-        transport_,
-        serverEndpoint_,
-        isPaused_,
-        [this](bool paused) { onPauseToggled(paused); },
-        [this]() { requestReturnToStart(); }
+    layerStack_.requestPushLayer(std::make_unique<ConnectingLayer>(
+        serverEndpoint_.host,
+        serverEndpoint_.port
     ));
-
-    layerStack_.requestPushOverlay(std::make_unique<HudLayer>(isPaused_));
-    layerStack_.requestPushOverlay(std::make_unique<DebugOverlayLayer>(debugState_));
 }
 
 void ClientApplication::onPauseToggled(bool paused) {

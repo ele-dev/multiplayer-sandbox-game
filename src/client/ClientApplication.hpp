@@ -7,6 +7,8 @@
 #include "client/RenderDebugState.hpp"
 #include "net/GameNetworkingSocketsTransport.hpp"
 
+#include <chrono>
+
 #include <SDL3/SDL_gamepad.h>
 #include <SDL3/SDL_joystick.h>
 #include <SDL3/SDL_video.h>
@@ -53,10 +55,12 @@ private:
     LayerStack layerStack_;
     NetworkEndpoint serverEndpoint_ = {"127.0.0.1", defaultServerPort};
     std::chrono::steady_clock::time_point lastFrameTime_ = {};
+    std::chrono::steady_clock::time_point connectionStartTime_ = {};
     bool running_ = true;
     bool isPaused_ = false;
     bool transportOpen_ = false;
     bool hasFrameTime_ = false;
+    bool hasPendingConnection_ = false;
     float smoothedFrameTimeMs_ = 0.0f;
 };
 
