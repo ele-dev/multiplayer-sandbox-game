@@ -2,6 +2,7 @@ build/
 out/
 dist/
 .cache/
+.worktrees/
 
 # CMake generated files
 CMakeCache.txt
