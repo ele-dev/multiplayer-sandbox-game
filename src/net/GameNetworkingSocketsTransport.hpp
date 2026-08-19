@@ -21,6 +21,7 @@ public:
     void close() override;
     bool send(const std::vector<std::uint8_t>& bytes, NetworkSendMode mode = NetworkSendMode::Unreliable) override;
     std::optional<NetworkPacket> receive() override;
+    void updateConnectionState();
 
     enum class ConnectionState {
         None,

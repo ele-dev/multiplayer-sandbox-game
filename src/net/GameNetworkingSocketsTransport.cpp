@@ -167,6 +167,12 @@ bool GameNetworkingSocketsTransport::send(const std::vector<std::uint8_t>& bytes
     return result == k_EResultOK;
 }
 
+void GameNetworkingSocketsTransport::updateConnectionState() {
+    if (interface_ != nullptr) {
+        interface_->RunCallbacks();
+    }
+}
+
 std::optional<NetworkPacket> GameNetworkingSocketsTransport::receive() {
     if (interface_ == nullptr) {
         return std::nullopt;

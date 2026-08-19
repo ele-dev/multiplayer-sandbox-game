@@ -190,6 +190,7 @@ void ClientApplication::processEvents() {
     }
 
     if (hasPendingConnection_) {
+        transport_.updateConnectionState();
         const auto connectionState = transport_.getConnectionState();
         
         if (connectionState == GameNetworkingSocketsTransport::ConnectionState::Connected) {
