@@ -66,3 +66,16 @@ packaging/linux/build-appimages.sh
 The script creates client and server AppImages under `dist/linux`. The server configuration file `server.cfg` is distributed beside the server AppImage and is read from the caller's working directory.
 
 Windows CI packages the Release executables, `server.cfg`, and required DLLs into the uploaded Windows artifact.
+
+## Docker Server
+
+Pushes to `main` and `develop` publish the Linux server image to GitHub Container Registry as `ghcr.io/ele-dev/multiplayer-sandbox-game-server:latest` and with a branch tag. The server runs as the non-root `game-server` user (UID and GID 1000) and listens on UDP port 27015.
+
+Mount the server configuration into the container and publish its UDP port:
+
+```bash
+docker run --rm \
+  --mount type=bind,source="$(pwd)/server.cfg",target=/app/server.cfg,readonly \
+  -p 27015:27015/udp \
+  ghcr.io/ele-dev/multiplayer-sandbox-game-server:latest
+```

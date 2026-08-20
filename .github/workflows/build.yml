@@ -1,17 +1,7 @@
 name: Build
 
 on:
-  push:
-    branches:
-      - main
-      - develop
-    paths-ignore:
-      - '*.md'
-      - '.gitignore'
-      - '.github/workflows/*.yml'
-      - 'docs/**'
-      - 'LICENSE'
-      - 'README*'
+  workflow_call:
   workflow_dispatch:
 
 jobs:
@@ -77,6 +67,21 @@ jobs:
         run: |
           cmake --build build --parallel
 
+      - name: Package server container payload
+        shell: bash
+        run: |
+          payload="dist/linux/server-container"
+          mkdir -p "${payload}/lib"
+          cp build/game_server "${payload}/game_server"
+          cp -L build/bin/libGameNetworkingSockets.so "${payload}/lib/"
+
+          protobuf_path="$(ldd build/bin/libGameNetworkingSockets.so | awk '$1 ~ /^libprotobuf[.]so/ { print $3; exit }')"
+          if [[ -z "${protobuf_path}" || ! -f "${protobuf_path}" ]]; then
+            printf 'Unable to locate the Protobuf runtime dependency\n' >&2
+            exit 1
+          fi
+          cp -L "${protobuf_path}" "${payload}/lib/"
+
       - name: Package AppImages
         run: |
           chmod +x packaging/linux/build-appimages.sh
@@ -95,6 +100,13 @@ jobs:
           path: |
             dist/linux/*server*.AppImage
             dist/linux/server.cfg
+
+      - name: Upload server container payload
+        uses: actions/upload-artifact@v6
+        with:
+          name: multiplayer-sandbox-game-server-linux-container
+          path: dist/linux/server-container/
+          if-no-files-found: error
 
   windows:
     name: Windows Release
