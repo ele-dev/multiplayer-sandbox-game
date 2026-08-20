@@ -19,6 +19,19 @@ enum class PacketType : std::uint8_t {
     Disconnect = 5,
 };
 
+struct ClientHello {
+    std::uint32_t sequence = 0;
+};
+
+struct ServerWelcome {
+    std::uint32_t sequence = 0;
+    std::uint32_t playerId = 0;
+};
+
+struct Disconnect {
+    std::uint32_t sequence = 0;
+};
+
 struct ClientInputCommand {
     std::uint32_t sequence = 0;
     std::uint64_t clientTick = 0;

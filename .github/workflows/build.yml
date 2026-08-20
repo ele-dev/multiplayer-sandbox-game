@@ -28,6 +28,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libprotobuf-dev \
+            libgtest-dev \
             libssl-dev \
             file \
             libfuse2 \
@@ -77,6 +78,9 @@ jobs:
         run: |
           cmake --build build --parallel
 
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
       - name: Package AppImages
         run: |
           chmod +x packaging/linux/build-appimages.sh
@@ -113,9 +117,9 @@ jobs:
           path: |
             ${{ github.workspace }}/vcpkg-binary-cache
             C:\vcpkg\downloads
-          key: ${{ runner.os }}-vcpkg-binary-protobuf-x64-windows-v2-${{ hashFiles('.github/workflows/build.yml', 'CMakeLists.txt') }}
+          key: ${{ runner.os }}-vcpkg-binary-deps-x64-windows-v3-${{ hashFiles('.github/workflows/build.yml', 'CMakeLists.txt') }}
           restore-keys: |
-            ${{ runner.os }}-vcpkg-binary-protobuf-x64-windows-v2-
+            ${{ runner.os }}-vcpkg-binary-deps-x64-windows-v3-
 
       - name: Install build and runtime dependencies
         shell: pwsh
@@ -123,7 +127,7 @@ jobs:
           VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/vcpkg-binary-cache,readwrite
         run: |
           New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/vcpkg-binary-cache" | Out-Null
-          vcpkg install protobuf:x64-windows
+          vcpkg install protobuf:x64-windows gtest:x64-windows
 
       - name: Check tooling version
         run: |
@@ -155,7 +159,9 @@ jobs:
           Copy-Item build/Release/game_server.exe package/windows/
           Copy-Item server.cfg package/windows/
           Get-ChildItem -Path build -Recurse -Filter *.dll | ForEach-Object { Copy-Item $_.FullName package/windows/ }
-          Get-ChildItem -Path "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/bin" -Filter *.dll | ForEach-Object { Copy-Item $_.FullName package/windows/ }
+          Get-ChildItem -Path "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/bin" -Filter *.dll |
+            Where-Object { $_.Name -notmatch '^g(test|mock)' } |
+            ForEach-Object { Copy-Item $_.FullName package/windows/ }
 
       - name: Upload artifact
         uses: actions/upload-artifact@v6

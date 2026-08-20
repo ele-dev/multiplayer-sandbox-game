@@ -13,6 +13,7 @@ endif()
 set(FETCHCONTENT_UPDATES_DISCONNECTED ON CACHE BOOL "" FORCE)
 
 include(FetchContent)
+include(CTest)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -52,6 +53,21 @@ FetchContent_Declare(
     GIT_SHALLOW TRUE
     GIT_SUBMODULES ""
 )
+
+if(BUILD_TESTING)
+    find_package(GTest QUIET)
+    if(NOT GTest_FOUND)
+        FetchContent_Declare(
+            googletest
+            GIT_REPOSITORY https://github.com/google/googletest.git
+            GIT_TAG v1.17.0
+            GIT_SHALLOW TRUE
+        )
+        set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+        set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+        FetchContent_MakeAvailable(googletest)
+    endif()
+endif()
 
 # --- Dependency Flags ---
 set(GLM_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -194,6 +210,26 @@ add_executable(game_client
 )
 target_link_libraries(game_client PRIVATE game_shared game_net imgui)
 
+if(BUILD_TESTING)
+    add_library(game_test_support STATIC
+        src/shared/Simulation.cpp
+        src/net/Serialization.cpp
+        src/client/Camera.cpp
+    )
+    target_include_directories(game_test_support PUBLIC src)
+    target_link_libraries(game_test_support PUBLIC glm::glm-header-only)
+
+    add_executable(game_tests
+        tests/test_simulation.cpp
+        tests/test_serialization.cpp
+        tests/test_camera.cpp
+    )
+    target_link_libraries(game_tests PRIVATE game_test_support GTest::gtest_main)
+
+    include(GoogleTest)
+    gtest_discover_tests(game_tests)
+endif()
+
 # ==============================================================================
 #  HELPER FUNCTIONS & PROPERTIES
 # ==============================================================================
@@ -219,6 +255,10 @@ target_strict_warnings(game_shared)
 target_strict_warnings(game_net)
 target_strict_warnings(game_server)
 target_strict_warnings(game_client)
+if(BUILD_TESTING)
+    target_strict_warnings(game_test_support)
+    target_strict_warnings(game_tests)
+endif()
 
 target_linux_runtime_paths(game_server)
 target_linux_runtime_paths(game_client)
