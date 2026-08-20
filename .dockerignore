@@ -1,0 +1,7 @@
+*
+!Dockerfile
+!dist/
+!dist/linux/
+!dist/linux/game_server
+!dist/linux/lib/
+!dist/linux/lib/**

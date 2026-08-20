@@ -6,8 +6,8 @@ C++20 desktop multiplayer sandbox game prototype with a headless authoritative s
 
 | Target | Last `main` Build |
 | --- | --- |
-| Linux | [![Linux build status](https://img.shields.io/github/check-runs/ele-dev/multiplayer-sandbox-game/main?nameFilter=Linux%20Release&label=Linux)](https://github.com/ele-dev/multiplayer-sandbox-game/actions/workflows/build.yml?query=branch%3Amain) |
-| Windows | [![Windows build status](https://img.shields.io/github/check-runs/ele-dev/multiplayer-sandbox-game/main?nameFilter=Windows%20Release&label=Windows)](https://github.com/ele-dev/multiplayer-sandbox-game/actions/workflows/build.yml?query=branch%3Amain) |
+| Linux | [![Linux build status](https://img.shields.io/github/check-runs/ele-dev/multiplayer-sandbox-game/main?nameFilter=Linux%20Release&label=Linux)](https://github.com/ele-dev/multiplayer-sandbox-game/actions/workflows/docker.yml?query=branch%3Amain) |
+| Windows | [![Windows build status](https://img.shields.io/github/check-runs/ele-dev/multiplayer-sandbox-game/main?nameFilter=Windows%20Release&label=Windows)](https://github.com/ele-dev/multiplayer-sandbox-game/actions/workflows/docker.yml?query=branch%3Amain) |
 
 Badges track the latest OS-specific workflow check runs on `main`.
 
