@@ -89,6 +89,19 @@ std::optional<PacketType> readPacketType(const std::vector<std::uint8_t>& bytes)
     return type;
 }
 
+std::optional<ClientHello> deserializeClientHello(const std::vector<std::uint8_t>& bytes) {
+    std::size_t offset = 0;
+    if (!readHeader(bytes, PacketType::ClientHello, offset)) {
+        return std::nullopt;
+    }
+
+    ClientHello hello;
+    if (!read(bytes, offset, hello.sequence)) {
+        return std::nullopt;
+    }
+    return hello;
+}
+
 std::optional<ClientInputCommand> deserializeClientInput(const std::vector<std::uint8_t>& bytes) {
     std::size_t offset = 0;
     if (!readHeader(bytes, PacketType::ClientInput, offset)) {
@@ -102,6 +115,32 @@ std::optional<ClientInputCommand> deserializeClientInput(const std::vector<std::
         return std::nullopt;
     }
     return input;
+}
+
+std::optional<Disconnect> deserializeDisconnect(const std::vector<std::uint8_t>& bytes) {
+    std::size_t offset = 0;
+    if (!readHeader(bytes, PacketType::Disconnect, offset)) {
+        return std::nullopt;
+    }
+
+    Disconnect disconnect;
+    if (!read(bytes, offset, disconnect.sequence)) {
+        return std::nullopt;
+    }
+    return disconnect;
+}
+
+std::optional<ServerWelcome> deserializeServerWelcome(const std::vector<std::uint8_t>& bytes) {
+    std::size_t offset = 0;
+    if (!readHeader(bytes, PacketType::ServerWelcome, offset)) {
+        return std::nullopt;
+    }
+
+    ServerWelcome welcome;
+    if (!read(bytes, offset, welcome.sequence) || !read(bytes, offset, welcome.playerId)) {
+        return std::nullopt;
+    }
+    return welcome;
 }
 
 std::optional<ServerSnapshot> deserializeServerSnapshot(const std::vector<std::uint8_t>& bytes) {

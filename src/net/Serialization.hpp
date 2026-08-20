@@ -14,7 +14,10 @@ std::vector<std::uint8_t> serializeServerWelcome(std::uint32_t sequence, std::ui
 std::vector<std::uint8_t> serializeServerSnapshot(const ServerSnapshot& snapshot);
 
 std::optional<PacketType> readPacketType(const std::vector<std::uint8_t>& bytes);
+std::optional<ClientHello> deserializeClientHello(const std::vector<std::uint8_t>& bytes);
 std::optional<ClientInputCommand> deserializeClientInput(const std::vector<std::uint8_t>& bytes);
+std::optional<Disconnect> deserializeDisconnect(const std::vector<std::uint8_t>& bytes);
+std::optional<ServerWelcome> deserializeServerWelcome(const std::vector<std::uint8_t>& bytes);
 std::optional<ServerSnapshot> deserializeServerSnapshot(const std::vector<std::uint8_t>& bytes);
 
 } // namespace game
