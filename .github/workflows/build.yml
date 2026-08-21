@@ -13,10 +13,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Cache apt packages
+        uses: actions/cache@v5
+        with:
+          path: |
+            /var/cache/apt/archives/*.deb
+            /var/lib/apt/lists/*
+          key: ${{ runner.os }}-apt-${{ hashFiles('.github/workflows/build.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            ccache \
             libprotobuf-dev \
             libgtest-dev \
             libssl-dev \
@@ -53,6 +64,31 @@ jobs:
       - name: Install latest CMake + Ninja
         uses: lukka/get-cmake@latest
 
+      - name: Cache FetchContent dependencies
+        id: cache-fetchcontent-linux
+        uses: actions/cache@v5
+        with:
+          path: build/_deps
+          key: ${{ runner.os }}-fetchcontent-deps-x64-linux-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-fetchcontent-deps-x64-linux-
+
+      - name: Cache ccache
+        uses: actions/cache@v5
+        with:
+          path: ~/.ccache
+          key: ${{ runner.os }}-ccache-${{ hashFiles('.github/workflows/build.yml', 'CMakeLists.txt') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-
+
+      - name: Cache linuxdeploy
+        uses: actions/cache@v5
+        with:
+          path: .cache/appimage-tools
+          key: ${{ runner.os }}-appimage-tools-${{ hashFiles('.github/workflows/build.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-appimage-tools-
+
       - name: Check tooling version
         run: |
           gcc --version
@@ -60,11 +96,16 @@ jobs:
           cmake --version
           ninja --version
           protoc --version
+          ccache --version
 
       - name: Configure
+        env:
+          CCACHE_DIR: ~/.ccache
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
+        env:
+          CCACHE_DIR: ~/.ccache
         run: |
           cmake --build build --parallel
 
@@ -132,6 +173,14 @@ jobs:
           key: ${{ runner.os }}-vcpkg-binary-deps-x64-windows-v3-${{ hashFiles('.github/workflows/build.yml', 'CMakeLists.txt') }}
           restore-keys: |
             ${{ runner.os }}-vcpkg-binary-deps-x64-windows-v3-
+
+      - name: Cache FetchContent dependencies
+        uses: actions/cache@v5
+        with:
+          path: build/_deps
+          key: ${{ runner.os }}-fetchcontent-deps-x64-windows-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-fetchcontent-deps-x64-windows-
 
       - name: Install build and runtime dependencies
         shell: pwsh

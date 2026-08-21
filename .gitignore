@@ -3,6 +3,7 @@ out/
 dist/
 .cache/
 .worktrees/
+.opencode/
 
 # CMake generated files
 CMakeCache.txt
