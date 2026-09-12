@@ -136,7 +136,9 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: multiplayer-sandbox-game-client-linux-appimage
-          path: dist/linux/*client*.AppImage
+          path: |
+            dist/linux/*client*.AppImage
+            dist/linux/client.cfg
 
       - name: Upload server AppImage
         uses: actions/upload-artifact@v6
@@ -219,6 +221,7 @@ jobs:
           Copy-Item build/Release/game_client.exe package/windows/
           Copy-Item build/Release/game_server.exe package/windows/
           Copy-Item server.cfg package/windows/
+          Copy-Item client.cfg package/windows/
           Get-ChildItem -Path build -Recurse -Filter *.dll | ForEach-Object { Copy-Item $_.FullName package/windows/ }
           Get-ChildItem -Path "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/bin" -Filter *.dll |
             Where-Object { $_.Name -notmatch '^g(test|mock)' } |

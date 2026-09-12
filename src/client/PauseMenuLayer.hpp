@@ -10,8 +10,9 @@ class PauseMenuLayer : public Layer {
 public:
     using ResumeCallback = std::function<void()>;
     using ReturnToStartCallback = std::function<void()>;
+    using SettingsCallback = std::function<void()>;
 
-    PauseMenuLayer(ResumeCallback onResume, ReturnToStartCallback onReturnToStart);
+    PauseMenuLayer(ResumeCallback onResume, ReturnToStartCallback onReturnToStart, SettingsCallback onSettings);
 
     void onEvent(Event& event) override;
     void onRender() override;
@@ -19,6 +20,7 @@ public:
 private:
     ResumeCallback onResume_;
     ReturnToStartCallback onReturnToStart_;
+    SettingsCallback settingsCallback_;
 };
 
 } // namespace game

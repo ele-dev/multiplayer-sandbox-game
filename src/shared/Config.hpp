@@ -12,6 +12,7 @@ public:
     std::string getString(const std::string& key, const std::string& defaultVal) const;
     int getInt(const std::string& key, int defaultVal) const;
     float getFloat(const std::string& key, float defaultVal) const;
+    bool getBool(const std::string& key, bool defaultVal) const;
 
     bool contains(const std::string& key) const;
 

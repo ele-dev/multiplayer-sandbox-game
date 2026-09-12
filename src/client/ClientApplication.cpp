@@ -34,18 +34,23 @@ ClientApplication::~ClientApplication() {
 }
 
 int ClientApplication::run() {
+    clientSettings_.load("client.cfg");
+
     if (!initialize()) {
         return 1;
     }
 
     layerStack_.requestPushLayer(std::make_unique<MainMenuLayer>(
         [this](const std::string& ip) { requestConnect(ip); },
-        [this]() { running_ = false; }
+        [this]() { running_ = false; },
+        clientSettings_
     ));
     layerStack_.applyPendingChanges();
 
     while (running_) {
         updateFrameTiming();
+
+        applyFullscreenSetting();
 
         processEvents();
         layerStack_.applyPendingChanges();
@@ -322,10 +327,26 @@ void ClientApplication::onPauseToggled(bool paused) {
     if (paused) {
         layerStack_.requestPushOverlay(std::make_unique<PauseMenuLayer>(
             [this]() { onPauseToggled(false); },
-            [this]() { requestReturnToStart(); }
+            [this]() { requestReturnToStart(); },
+            [this]() {
+                layerStack_.requestPopLayer();
+                for (auto& layer : layerStack_) {
+                    if (MainMenuLayer* mainMenu = dynamic_cast<MainMenuLayer*>(layer.get())) {
+                        mainMenu->navigateToSettings();
+                        break;
+                    }
+                }
+            }
         ));
     } else {
         layerStack_.requestPopLayer();
+    }
+}
+
+void ClientApplication::applyFullscreenSetting() {
+    if (clientSettings_.fullscreen != fullscreenPreviously_) {
+        SDL_SetWindowFullscreen(window_, clientSettings_.fullscreen);
+        fullscreenPreviously_ = clientSettings_.fullscreen;
     }
 }
 
@@ -340,7 +361,8 @@ void ClientApplication::requestReturnToStart() {
 
     layerStack_.requestPushLayer(std::make_unique<MainMenuLayer>(
         [this](const std::string& ip) { requestConnect(ip); },
-        [this]() { running_ = false; }
+        [this]() { running_ = false; },
+        clientSettings_
     ));
 }
 

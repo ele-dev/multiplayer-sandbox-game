@@ -1,6 +1,7 @@
 #pragma once
 
 #include "client/Camera.hpp"
+#include "client/ClientSettings.hpp"
 #include "client/DearImGuiContext.hpp"
 #include "client/LayerStack.hpp"
 #include "client/OpenGLRenderer.hpp"
@@ -43,6 +44,7 @@ private:
     void requestConnect(const std::string& ip);
     void requestReturnToStart();
     void onPauseToggled(bool paused);
+    void applyFullscreenSetting();
 
     SDL_Window* window_ = nullptr;
     SDL_GLContext glContext_ = nullptr;
@@ -53,6 +55,7 @@ private:
     OpenGLRenderer renderer_;
     GameNetworkingSocketsTransport transport_;
     LayerStack layerStack_;
+    ClientSettings clientSettings_;
     NetworkEndpoint serverEndpoint_ = {"127.0.0.1", defaultServerPort};
     std::chrono::steady_clock::time_point lastFrameTime_ = {};
     std::chrono::steady_clock::time_point connectionStartTime_ = {};
@@ -62,6 +65,7 @@ private:
     bool hasFrameTime_ = false;
     bool hasPendingConnection_ = false;
     float smoothedFrameTimeMs_ = 0.0f;
+    bool fullscreenPreviously_ = false;
 };
 
 } // namespace game
