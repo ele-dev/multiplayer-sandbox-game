@@ -35,7 +35,6 @@ ClientApplication::~ClientApplication() {
 
 int ClientApplication::run() {
     clientSettings_.load("client.cfg");
-    fullscreenPreviously_ = clientSettings_.fullscreen;
 
     if (!initialize()) {
         return 1;

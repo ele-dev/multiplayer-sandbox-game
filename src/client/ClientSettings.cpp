@@ -13,7 +13,7 @@ void ClientSettings::load(const std::string& path) {
 
     mouseSensitivity = config.getFloat("client.mouse_sensitivity", mouseSensitivity);
     audioVolume = config.getFloat("client.audio_volume", audioVolume);
-    fullscreen = config.getInt("client.fullscreen", fullscreen ? 1 : 0) != 0;
+    fullscreen = config.getBool("client.fullscreen", fullscreen);
 }
 
 void ClientSettings::save(const std::string& path) const {
