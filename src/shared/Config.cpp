@@ -1,5 +1,7 @@
 #include "shared/Config.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -89,6 +91,24 @@ float Config::getFloat(const std::string& key, float defaultVal) const {
     } catch (...) {
         std::cerr << "Config: key '" << key << "' has non-float value '" << it->second << "'\n";
     }
+    return defaultVal;
+}
+
+bool Config::getBool(const std::string& key, bool defaultVal) const {
+    const auto it = values_.find(key);
+    if (it == values_.end()) {
+        return defaultVal;
+    }
+    std::string value = it->second;
+    std::transform(value.begin(), value.end(), value.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    if (value == "true" || value == "1") {
+        return true;
+    }
+    if (value == "false" || value == "0") {
+        return false;
+    }
+    std::cerr << "Config: key '" << key << "' has non-boolean value '" << it->second << "'\n";
     return defaultVal;
 }
 

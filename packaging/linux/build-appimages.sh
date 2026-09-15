@@ -169,7 +169,7 @@ build_appimage() {
 download_linuxdeploy
 rm -rf "${client_appdir}" "${server_appdir}"
 rm -f "${output_dir}"/*.AppImage
-rm -f "${output_dir}/server.cfg"
+rm -f "${output_dir}/server.cfg" "${output_dir}/client.cfg"
 
 cmake --install "${build_dir}" --prefix "${client_appdir}/usr" --component client
 cmake --install "${build_dir}" --prefix "${server_appdir}/usr" --component server
@@ -181,7 +181,9 @@ copy_runtime_libraries "${server_appdir}" no
 write_apprun "${client_appdir}" game_client app-bin
 write_apprun "${server_appdir}" game_server caller
 cp "${repo_root}/server.cfg" "${output_dir}/server.cfg"
+cp "${repo_root}/client.cfg" "${output_dir}/client.cfg"
 chmod 0644 "${output_dir}/server.cfg"
+chmod 0644 "${output_dir}/client.cfg"
 
 run_linuxdeploy "${client_appdir}" "${repo_root}/packaging/linux/game_client.desktop" "${repo_root}/packaging/linux/game_client.svg"
 run_linuxdeploy "${server_appdir}" "${repo_root}/packaging/linux/game_server.desktop" "${repo_root}/packaging/linux/game_server.svg"
@@ -191,4 +193,4 @@ build_appimage "${server_appdir}" "${server_name}"
 
 printf '\nCreated AppImages:\n'
 find "${output_dir}" -maxdepth 1 -name '*.AppImage' -type f -printf '%f\n' | sort
-printf '%s\n' 'server.cfg'
+printf '%s\n' 'server.cfg' 'client.cfg'

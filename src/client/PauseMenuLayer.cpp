@@ -7,9 +7,10 @@
 
 namespace game {
 
-PauseMenuLayer::PauseMenuLayer(ResumeCallback onResume, ReturnToStartCallback onReturnToStart)
+PauseMenuLayer::PauseMenuLayer(ResumeCallback onResume, ReturnToStartCallback onReturnToStart, SettingsCallback onSettings)
     : onResume_(std::move(onResume))
-    , onReturnToStart_(std::move(onReturnToStart)) 
+    , onReturnToStart_(std::move(onReturnToStart))
+    , settingsCallback_(std::move(onSettings))
 {
     setBlocking(true);
 }
@@ -57,6 +58,14 @@ void PauseMenuLayer::onRender() {
             }
         }
         ImGui::SetItemDefaultFocus();
+
+        ImGui::Dummy(ImVec2(0.0f, 8.0f));
+
+        if (ImGui::Button("Settings", ImVec2(220.0f, 0.0f))) {
+            if (settingsCallback_) {
+                settingsCallback_();
+            }
+        }
 
         ImGui::Dummy(ImVec2(0.0f, 8.0f));
 
